@@ -4,6 +4,8 @@ A small, understandable Minecraft server manager for Linux homelabs.
 
 Licensed under the MIT License. You may use, change, and share it.
 
+Project: https://github.com/V1CT0R-06/minecraft-panel
+
 It uses only:
 
 - Python 3 and Flask;
@@ -44,7 +46,7 @@ After installing the panel, sign in and open **Tutorial** in the top navigation.
 ## Quick development setup
 
 ```bash
-git clone YOUR_REPOSITORY_URL minecraft-panel
+git clone https://github.com/V1CT0R-06/minecraft-panel.git
 cd minecraft-panel
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
