@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Removed Servers — Minecraft Manager{% endblock %}
+{% block content %}
+<div class="page-actions"><a href="{{ url_for('index') }}">← Dashboard</a></div>
+<h1>Removed servers</h1>
+<p class="muted">Archives are recoverable until you delete them here.</p>
+
+{% if error %}<p class="message error">{{ error }}</p>{% endif %}
+{% if request.args.get('deleted') %}<p class="message success">{{ request.args.get('deleted') }} was permanently deleted.</p>{% endif %}
+
+{% if archives %}
+  {% for archive in archives %}
+  <section class="card removed-card">
+    <h2>{{ archive.name }}</h2>
+    <div class="details">
+      <div class="row"><span>Removed</span><strong>{{ archive.removed_at }}</strong></div>
+      <div class="row"><span>Size</span><strong>{{ archive.size }}</strong></div>
+      <div class="row"><span>Files</span><strong>{{ archive.path }}</strong></div>
+    </div>
+    <details class="danger-zone">
+      <summary>Delete files permanently</summary>
+      <p class="muted">This cannot be undone. Type the full archive name.</p>
+      <form method="post" action="{{ url_for('delete_removed_server', archive_name=archive.name) }}" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="confirmation" placeholder="{{ archive.name }}" autocomplete="off" required>
+        <button class="button danger" type="submit">Delete permanently</button>
+      </form>
+    </details>
+  </section>
+  {% endfor %}
+{% else %}
+  <section class="card"><p class="muted">There are no removed server archives.</p></section>
+{% endif %}
+{% endblock %}

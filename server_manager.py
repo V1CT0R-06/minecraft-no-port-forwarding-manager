@@ -24,6 +24,7 @@ ALLOWED_TYPES = {"VANILLA", "PAPER", "FABRIC", "FORGE", "NEOFORGE"}
 HOSTNAME_PATTERN = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 VERSION_PATTERN = re.compile(r"^(?:LATEST|\d+(?:\.\d+){1,2})$", re.IGNORECASE)
 PLAYIT_ENDPOINT_PATTERN = re.compile(r"^[A-Za-z0-9.-]+(?::\d{1,5})?$")
+ARCHIVE_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}-\d{8}-\d{6}$")
 
 
 def select_image(minecraft_version):
@@ -331,3 +332,52 @@ def remove_server(server_id):
             shutil.move(str(archive), server_directory)
             raise
         return archive
+
+
+def directory_size(path):
+    """Return file bytes without following links outside an archive."""
+    total = 0
+    for root, _, files in os.walk(path, followlinks=False):
+        for filename in files:
+            try:
+                total += (Path(root) / filename).stat(follow_symlinks=False).st_size
+            except OSError:
+                pass
+    return total
+
+
+def format_file_size(size):
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024 or unit == "TB":
+            return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+
+
+def list_removed_servers():
+    """List only valid archive directories created by this panel."""
+    archive_root = SERVER_ROOT.resolve() / ".removed"
+    if not archive_root.exists():
+        return []
+    archives = []
+    for path in archive_root.iterdir():
+        if not ARCHIVE_NAME_PATTERN.fullmatch(path.name) or not path.is_dir() or path.is_symlink():
+            continue
+        stats = path.stat()
+        archives.append({
+            "name": path.name,
+            "path": str(path),
+            "size": format_file_size(directory_size(path)),
+            "removed_at": datetime.fromtimestamp(stats.st_mtime).strftime("%Y-%m-%d %H:%M"),
+        })
+    return sorted(archives, key=lambda item: item["name"], reverse=True)
+
+
+def delete_removed_server(archive_name):
+    """Permanently delete one validated archive and nothing else."""
+    if not ARCHIVE_NAME_PATTERN.fullmatch(archive_name or ""):
+        raise ValueError("Invalid removed server name")
+    archive_root = SERVER_ROOT.resolve() / ".removed"
+    archive = archive_root / archive_name
+    if archive.parent != archive_root or archive.is_symlink() or not archive.is_dir():
+        raise ValueError("Removed server archive was not found")
+    shutil.rmtree(archive)

@@ -161,6 +161,35 @@ def create_app(test_config=None):
             server_types=sorted(server_manager.ALLOWED_TYPES),
         )
 
+    @app.get("/removed")
+    @login_required
+    def removed_servers():
+        return render_template(
+            "removed.html",
+            archives=server_manager.list_removed_servers(),
+        )
+
+    @app.post("/removed/<archive_name>/delete")
+    @login_required
+    def delete_removed_server(archive_name):
+        if not check_csrf():
+            return "Invalid CSRF token", 403
+        if request.form.get("confirmation", "").strip() != archive_name:
+            return render_template(
+                "removed.html",
+                archives=server_manager.list_removed_servers(),
+                error=f"Type {archive_name} exactly to delete it",
+            ), 400
+        try:
+            server_manager.delete_removed_server(archive_name)
+        except ValueError as exc:
+            return render_template(
+                "removed.html",
+                archives=server_manager.list_removed_servers(),
+                error=str(exc),
+            ), 400
+        return redirect(url_for("removed_servers", deleted=archive_name))
+
     @app.route("/servers/<server_key>/network", methods=["GET", "POST"])
     @login_required
     def server_network(server_key):

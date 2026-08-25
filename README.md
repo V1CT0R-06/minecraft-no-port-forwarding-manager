@@ -27,6 +27,7 @@ There is no Node.js, npm, frontend framework, database, Redis, WebSocket service
 - creates persistent Vanilla, Paper, Fabric, Forge, and NeoForge servers;
 - removes panel-created servers while archiving their files for recovery;
 - removes imported containers while preserving their worlds and Compose files;
+- lists recoverable archives and can permanently delete a selected archive;
 - displays Minecraft, server software, and detected Pixelmon versions;
 - guides Playit tunnel setup;
 - generates and verifies DNS-only CNAME and Minecraft SRV records;

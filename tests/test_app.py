@@ -186,3 +186,25 @@ def test_network_page_records_metadata_without_controlling_playit():
         )
         assert response.status_code == 200
         save.assert_called_once_with("creative", "example.gl.joinmc.link")
+
+
+def test_removed_server_page_requires_exact_confirmation():
+    client = make_client()
+    login(client)
+    archive = {"name": "test-20260825-120000", "removed_at": "now", "size": "1 MB", "path": "/tmp/test"}
+    with patch("server_manager.list_removed_servers", return_value=[archive]), \
+         patch("server_manager.delete_removed_server") as delete:
+        assert client.get("/removed").status_code == 200
+        response = client.post(
+            "/removed/test-20260825-120000/delete",
+            data={"confirmation": "wrong", "csrf_token": get_csrf(client)},
+        )
+        assert response.status_code == 400
+        delete.assert_not_called()
+
+        response = client.post(
+            "/removed/test-20260825-120000/delete",
+            data={"confirmation": "test-20260825-120000", "csrf_token": get_csrf(client)},
+        )
+        assert response.status_code == 302
+        delete.assert_called_once_with("test-20260825-120000")

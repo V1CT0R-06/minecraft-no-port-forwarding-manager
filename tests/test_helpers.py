@@ -247,6 +247,31 @@ def test_minecraft_and_pixelmon_version_detection(tmp_path):
     assert docker_manager.get_mod_info(details) == ("Pixelmon", "9.3.16")
 
 
+def test_removed_server_archives_can_be_listed_and_deleted(tmp_path, monkeypatch):
+    server_root = tmp_path / "servers"
+    archive = server_root / ".removed" / "test-20260825-120000"
+    archive.mkdir(parents=True)
+    (archive / "world.dat").write_bytes(b"world")
+    monkeypatch.setattr(server_manager, "SERVER_ROOT", server_root)
+
+    listed = server_manager.list_removed_servers()
+    assert listed[0]["name"] == archive.name
+    assert listed[0]["size"] == "5 B"
+    server_manager.delete_removed_server(archive.name)
+    assert not archive.exists()
+
+
+def test_removed_server_delete_rejects_arbitrary_paths(tmp_path, monkeypatch):
+    monkeypatch.setattr(server_manager, "SERVER_ROOT", tmp_path / "servers")
+    for name in ("../paper", "paper", "/srv/minecraft/paper"):
+        try:
+            server_manager.delete_removed_server(name)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("Arbitrary paths must not be deletable")
+
+
 def test_dns_guidance_matches_playit_cname_and_srv(monkeypatch):
     monkeypatch.setattr(network_manager, "DNS_ZONE", "example.com")
     answers = {

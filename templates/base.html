@@ -15,6 +15,7 @@
       <nav class="main-nav" aria-label="Main navigation">
         <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Dashboard</a>
         <a href="{{ url_for('new_server') }}" class="{{ 'active' if request.endpoint == 'new_server' else '' }}">New server</a>
+        <a href="{{ url_for('removed_servers') }}" class="{{ 'active' if request.endpoint == 'removed_servers' else '' }}">Removed</a>
         <a href="{{ url_for('tutorial') }}" class="{{ 'active' if request.endpoint == 'tutorial' else '' }}">Help</a>
       </nav>
       <form method="post" action="{{ url_for('logout') }}">
