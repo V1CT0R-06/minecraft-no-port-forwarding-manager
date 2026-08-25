@@ -78,6 +78,17 @@ function networkHtml(server) {
   </div><a class="button secondary link-button" href="/servers/${server.key}/network">Open Network Setup</a></details>`;
 }
 
+function removeHtml(server) {
+  if (!server.managed) return "";
+  return `<details class="panel-section danger-zone"><summary>Remove server</summary>
+    <p class="muted">Stops this server and moves its files to the recoverable .removed archive. Playit and DNS are not changed.</p>
+    <form class="inline-form" onsubmit="removeServer(event,'${server.key}')">
+      <input name="confirmation" placeholder="Type ${server.key}" autocomplete="off" required>
+      <button class="button danger">Remove server</button>
+    </form>
+  </details>`;
+}
+
 function renderServer(server) {
   const running = server.state === "running";
   const statusClass = running ? "online" : server.state === "stopped" ? "offline" : "unknown";
@@ -85,10 +96,9 @@ function renderServer(server) {
   const mc = server.minecraft || {};
   const playerText = mc.available && mc.players.online != null ? `${mc.players.online} / ${mc.players.max}` : "N/A";
   const playerNames = mc.available && mc.players.names.length ? mc.players.names.map(name => `<li>${escapeHtml(name)}</li>`).join("") : `<li class="muted">Nobody online</li>`;
-  let controls = running
+  const controls = running
     ? `<button class="button secondary" onclick="controlServer('${server.key}','restart')">Restart</button><button class="button danger" onclick="controlServer('${server.key}','stop')">Stop</button>`
     : server.state === "stopped" ? `<button class="button primary" onclick="controlServer('${server.key}','start')">Start</button>` : "";
-  if (server.managed) controls += `<button class="button danger" onclick="removeServer('${server.key}')">Remove server</button>`;
   const runningSections = running ? `
     <details class="panel-section"><summary>Players online — ${escapeHtml(mc.players?.online ?? "N/A")}</summary><ul class="name-list">${playerNames}</ul></details>
     <details class="panel-section"><summary>Whitelist</summary><div class="whitelist">${whitelistHtml(server)}</div></details>
@@ -113,7 +123,7 @@ function renderServer(server) {
       <div class="row"><span>Docker CPU limit</span><strong>${server.cpu_limit == null ? "Not configured" : `${server.cpu_limit} CPU`}</strong></div>
       <div class="row"><span>Container uptime</span><strong>${escapeHtml(server.uptime || "N/A")}</strong></div>
       <div class="row"><span>Whitelist configured</span><strong>${server.whitelist_enabled ? "Enabled" : "Disabled"}</strong></div>
-    </div></details>${resourcesHtml(server)}${networkHtml(server)}${runningSections}`;
+    </div></details>${resourcesHtml(server)}${networkHtml(server)}${runningSections}${removeHtml(server)}`;
 }
 
 function renderServers(servers) {
@@ -207,10 +217,13 @@ async function saveMemory(event, key) {
   }
 }
 
-async function removeServer(key) {
-  const server = latestStatus?.servers[key];
-  const confirmation = prompt(`Remove ${server.label}?\n\nThis stops its container and moves all files to the .removed archive. Playit and DNS are not changed.\n\nType ${key} to continue:`);
-  if (confirmation !== key) return;
+async function removeServer(event, key) {
+  event.preventDefault();
+  const confirmation = event.target.elements.confirmation.value.trim();
+  if (confirmation !== key) {
+    showMessage(`Type ${key} exactly to remove this server.`, "error");
+    return;
+  }
   try {
     const data = await postJson(`/api/servers/${key}/remove`, {confirmation});
     showMessage(data.message);

@@ -75,6 +75,7 @@ h3 { font-size: 1rem; }
 .panel-section { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--border); }
 details summary { color: var(--muted); cursor: pointer; }
 details[open] > summary { color: var(--text); }
+.danger-zone summary { color: var(--red); }
 .host-details .metric-grid { margin-bottom: 2px; }
 .details { margin: 16px 0; }
 .row { min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--border); }

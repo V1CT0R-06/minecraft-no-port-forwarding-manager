@@ -12,7 +12,7 @@ SupplementaryGroups=docker
 WorkingDirectory=/opt/minecraft-panel
 EnvironmentFile=/opt/minecraft-panel/.env
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/opt/minecraft-panel/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8080 --access-logfile - --error-logfile - app:app
+ExecStart=/opt/minecraft-panel/.venv/bin/gunicorn --workers 2 --timeout 330 --bind 0.0.0.0:8080 --access-logfile - --error-logfile - app:app
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
