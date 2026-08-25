@@ -295,6 +295,11 @@ def remove_server(server_id):
         if server_directory.parent != server_root:
             raise ValueError("The server directory is outside the managed server folder")
 
+        archive_root = server_root / ".removed"
+        archive_root.mkdir(mode=0o770, exist_ok=True)
+        if not os.access(archive_root, os.W_OK):
+            raise PermissionError(f"The panel cannot write to the archive folder: {archive_root}")
+
         subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "down"],
             check=True,
@@ -303,8 +308,6 @@ def remove_server(server_id):
             timeout=300,
         )
 
-        archive_root = server_root / ".removed"
-        archive_root.mkdir(exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         archive = archive_root / f"{server_id}-{timestamp}"
         shutil.move(str(server_directory), archive)
