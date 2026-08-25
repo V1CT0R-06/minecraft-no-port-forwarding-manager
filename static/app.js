@@ -79,9 +79,11 @@ function networkHtml(server) {
 }
 
 function removeHtml(server) {
-  if (!server.managed) return "";
+  const explanation = server.managed
+    ? "Stops this server and moves its files to the recoverable .removed archive."
+    : "Stops and removes this container from the panel. Its world and original Compose file are kept.";
   return `<details class="panel-section danger-zone"><summary>Remove server</summary>
-    <p class="muted">Stops this server and moves its files to the recoverable .removed archive. Playit and DNS are not changed.</p>
+    <p class="muted">${explanation} Playit and DNS are not changed.</p>
     <form class="inline-form" onsubmit="removeServer(event,'${server.key}')">
       <input name="confirmation" placeholder="Type ${server.key}" autocomplete="off" required>
       <button class="button danger">Remove server</button>
@@ -110,6 +112,8 @@ function renderServer(server) {
     ${server.error ? `<p class="message error">${escapeHtml(server.error)}</p>` : ""}
     <div class="server-summary-grid">
       <div><span>Players</span><strong>${playerText}</strong></div>
+      <div><span>Minecraft</span><strong>${escapeHtml(server.minecraft_version || "N/A")}</strong></div>
+      <div><span>Software / mod</span><strong>${escapeHtml(server.mod_name ? `${server.mod_name} ${server.mod_version || ""}`.trim() : server.server_type || "N/A")}</strong></div>
       <div><span>Java RAM</span><strong>${escapeHtml(server.configured_memory || "N/A")}</strong></div>
       <div><span>RAM now</span><strong>${server.current_memory_gib == null ? "N/A" : `${server.current_memory_gib} GiB`}</strong></div>
       <div><span>CPU</span><strong>${server.cpu_percent == null ? "N/A" : `${server.cpu_percent}%`}</strong></div>

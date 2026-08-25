@@ -74,14 +74,49 @@ def get_environment(container):
     return environment
 
 
-def get_configured_memory(container):
-    env = get_environment(container)
+def get_configured_memory(container, env=None):
+    env = env or get_environment(container)
     # MAX_MEMORY is the clearest maximum when present. MEMORY is the common
     # itzg image setting; INIT_MEMORY alone is only the starting heap.
     for key in ("MAX_MEMORY", "MEMORY", "INIT_MEMORY"):
         if env.get(key):
             return env[key]
     return "Not configured"
+
+
+def get_minecraft_version(details, env):
+    """Read the configured version, resolving LATEST from installed files."""
+    configured = env.get("VERSION") or details.get("minecraft_version") or "Unknown"
+    if configured.upper() != "LATEST":
+        return configured
+    data_path = Path(details.get("data_path") or "")
+    try:
+        history = json.loads((data_path / "version_history.json").read_text(encoding="utf-8"))
+        match = re.search(r"MC:\s*([^\)]+)", history.get("currentVersion", ""))
+        if match:
+            return match.group(1)
+    except (OSError, ValueError):
+        pass
+    try:
+        jar = next(data_path.glob("minecraft_server.*.jar"), None)
+        if jar:
+            return jar.name.removeprefix("minecraft_server.").removesuffix(".jar")
+    except OSError:
+        pass
+    return configured
+
+
+def get_mod_info(details):
+    """Detect the Pixelmon version from its installed mod filename."""
+    mods_path = Path(details.get("data_path") or "") / "mods"
+    try:
+        for jar in mods_path.glob("*.jar"):
+            match = re.match(r"Pixelmon-[^-]+-([0-9.]+)-.*\.jar$", jar.name, re.IGNORECASE)
+            if match:
+                return "Pixelmon", match.group(1)
+    except OSError:
+        pass
+    return details.get("mod_name"), details.get("mod_version")
 
 
 def memory_to_gib(value):
@@ -215,12 +250,17 @@ def get_one_server_status(client, server_key, details=None):
     state = container.attrs.get("State", {})
     running = state.get("Running", False)
     health = (state.get("Health") or {}).get("Status", "not configured")
-    configured_memory = get_configured_memory(container)
+    environment = get_environment(container)
+    configured_memory = get_configured_memory(container, environment)
+    mod_name, mod_version = get_mod_info(details)
     result = {
         "key": server_key,
         "label": details["label"],
         "public_hostname": details.get("public_hostname"),
         "server_type": details.get("server_type", "Unknown"),
+        "minecraft_version": get_minecraft_version(details, environment),
+        "mod_name": mod_name,
+        "mod_version": mod_version,
         "data_path": details.get("data_path"),
         "local_port": details.get("local_port"),
         "managed": bool(details.get("managed")),
@@ -233,7 +273,7 @@ def get_one_server_status(client, server_key, details=None):
         "configured_memory_gib": memory_to_gib(configured_memory),
         "configured_memory_bytes": parse_memory(configured_memory),
         "cpu_limit": get_cpu_limit(container),
-        "whitelist_enabled": get_environment(container).get("ENABLE_WHITELIST", "").lower() == "true",
+        "whitelist_enabled": environment.get("ENABLE_WHITELIST", "").lower() == "true",
         "current_memory_gib": None,
         "cpu_percent": None,
         "uptime": container_uptime(container) if running else "N/A",

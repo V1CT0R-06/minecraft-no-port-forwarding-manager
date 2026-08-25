@@ -286,8 +286,21 @@ def remove_server(server_id):
         fcntl.flock(lock, fcntl.LOCK_EX)
         registry = json.loads(docker_manager.CONFIG_FILE.read_text(encoding="utf-8"))
         server = registry.get(server_id)
-        if not server or not server.get("managed"):
-            raise ValueError("Only servers created by this panel can be removed")
+        if not server:
+            raise ValueError("Unknown server")
+
+        if not server.get("managed"):
+            try:
+                container = docker_manager.get_client().containers.get(server["container"])
+                container.reload()
+                if container.attrs.get("State", {}).get("Running"):
+                    container.stop(timeout=60)
+                container.remove()
+            except NotFound:
+                pass
+            registry.pop(server_id)
+            save_registry(registry)
+            return None
 
         compose_file = Path(server["compose_file"]).resolve()
         server_directory = compose_file.parent

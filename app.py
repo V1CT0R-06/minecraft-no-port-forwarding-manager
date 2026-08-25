@@ -354,9 +354,14 @@ def create_app(test_config=None):
             return api_error("Type the exact server ID to confirm removal")
         try:
             archive = server_manager.remove_server(server_key)
+            message = (
+                f"Server removed. Its files were archived at {archive}"
+                if archive else
+                "Server removed from Docker and the panel. Its world and Compose files were kept."
+            )
             return jsonify({
                 "ok": True,
-                "message": f"Server removed. Its files were archived at {archive}",
+                "message": message,
             })
         except ValueError as exc:
             return api_error(str(exc))

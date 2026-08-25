@@ -1,3 +1,5 @@
+import json
+
 import docker_manager
 import minecraft
 import network_manager
@@ -209,17 +211,40 @@ def test_remove_managed_server_archives_files(tmp_path, monkeypatch):
     assert run.call_args.args[0][-1] == "down"
 
 
-def test_remove_imported_server_is_rejected(tmp_path, monkeypatch):
+def test_remove_imported_server_keeps_its_files(tmp_path, monkeypatch):
+    data = tmp_path / "paper-data"
+    data.mkdir()
+    (data / "world.dat").write_text("keep", encoding="utf-8")
     registry = tmp_path / "servers.json"
-    registry.write_text('{"paper": {"managed": false}}\n', encoding="utf-8")
+    registry.write_text(
+        '{"paper": {"managed": false, "container": "minecraft-paper", '
+        '"data_path": "' + str(data) + '"}}\n', encoding="utf-8",
+    )
     monkeypatch.setattr(docker_manager, "CONFIG_FILE", registry)
     monkeypatch.setattr(docker_manager, "STATE_DIRECTORY", tmp_path / "state")
-    try:
-        server_manager.remove_server("paper")
-    except ValueError as exc:
-        assert "created by this panel" in str(exc)
-    else:
-        raise AssertionError("Imported servers must not be removable")
+    container = Mock(attrs={"State": {"Running": True}})
+    client = Mock()
+    client.containers.get.return_value = container
+    monkeypatch.setattr(docker_manager, "get_client", lambda: client)
+
+    assert server_manager.remove_server("paper") is None
+    container.stop.assert_called_once_with(timeout=60)
+    container.remove.assert_called_once()
+    assert (data / "world.dat").read_text(encoding="utf-8") == "keep"
+    assert json.loads(registry.read_text(encoding="utf-8")) == {}
+
+
+def test_minecraft_and_pixelmon_version_detection(tmp_path):
+    data = tmp_path / "data"
+    mods = data / "mods"
+    mods.mkdir(parents=True)
+    (data / "minecraft_server.26.2.jar").touch()
+    (mods / "Pixelmon-1.21.1-9.3.16-universal.jar").touch()
+    details = {"data_path": str(data)}
+
+    assert docker_manager.get_minecraft_version(details, {"VERSION": "LATEST"}) == "26.2"
+    assert docker_manager.get_minecraft_version(details, {"VERSION": "1.21.1"}) == "1.21.1"
+    assert docker_manager.get_mod_info(details) == ("Pixelmon", "9.3.16")
 
 
 def test_dns_guidance_matches_playit_cname_and_srv(monkeypatch):
