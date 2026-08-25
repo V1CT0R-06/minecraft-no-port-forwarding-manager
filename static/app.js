@@ -117,13 +117,27 @@ function renderServer(server) {
 
 function renderServers(servers) {
   const grid = document.getElementById("server-grid");
+  const openSections = {};
+  grid.querySelectorAll(".server-card").forEach(card => {
+    openSections[card.id] = [...card.querySelectorAll("details")]
+      .map((section, index) => section.open ? index : -1)
+      .filter(index => index >= 0);
+  });
+
   const serverList = Object.values(servers);
   if (!serverList.length) {
     grid.innerHTML = `<article class="card empty-state"><span class="empty-icon">+</span><h2>No servers yet</h2><p class="muted">Create your first persistent Minecraft server, or read the tutorial before you begin.</p><div class="actions"><a class="button primary" href="/servers/new">Create server</a><a class="button secondary" href="/tutorial">Open tutorial</a></div></article>`;
     return;
   }
   grid.innerHTML = serverList.map(server => `<article id="${server.key}-card" class="card server-card is-${server.state}"></article>`).join("");
-  serverList.forEach(renderServer);
+  serverList.forEach(server => {
+    renderServer(server);
+    const card = document.getElementById(`${server.key}-card`);
+    const sections = card.querySelectorAll("details");
+    (openSections[card.id] || []).forEach(index => {
+      if (sections[index]) sections[index].open = true;
+    });
+  });
 }
 
 async function refreshStatus() {
