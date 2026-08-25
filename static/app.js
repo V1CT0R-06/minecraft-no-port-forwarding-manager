@@ -21,19 +21,21 @@ function metric(label, value, percent = null) {
 
 function renderHost(host, resources) {
   document.getElementById("host-grid").innerHTML = [
-    metric("Hostname", host.hostname),
-    metric("Uptime", host.uptime),
     metric("CPU", `${host.cpu_percent}%`, host.cpu_percent),
-    metric("CPU cores", `${host.physical_cpu_count ?? "N/A"} physical / ${host.logical_cpu_count ?? "N/A"} logical`),
     metric("RAM", `${host.ram_used_gib} / ${host.ram_total_gib} GiB`, host.ram_percent),
     metric("Available RAM", `${host.ram_available_gib} GiB`),
+    metric("Disk", `${host.disk_percent}%`, host.disk_percent),
+    metric("Uptime", host.uptime),
+    metric("Playit", host.playit === "running" ? "● Running" : host.playit === "stopped" ? "○ Stopped" : "? Unknown"),
+  ].join("");
+  document.getElementById("host-more-grid").innerHTML = [
+    metric("Hostname", host.hostname),
+    metric("CPU cores", `${host.physical_cpu_count ?? "N/A"} physical / ${host.logical_cpu_count ?? "N/A"} logical`),
     metric("Recommended host reserve", `${resources.recommended_reserve_gib} GiB`),
     metric("Minecraft configured heaps", `${resources.minecraft_configured_gib} GiB`),
     metric("Running server heaps", `${resources.minecraft_running_gib} GiB`),
     metric("Suggested heap headroom", `${resources.planned_heap_headroom_gib} GiB`),
     metric("Swap", `${host.swap_used_gib} / ${host.swap_total_gib} GiB`, host.swap_percent),
-    metric("Disk", `${host.disk_percent}%`, host.disk_percent),
-    metric("Playit", host.playit === "running" ? "● Running" : host.playit === "stopped" ? "○ Stopped" : "? Unknown"),
   ].join("");
 }
 

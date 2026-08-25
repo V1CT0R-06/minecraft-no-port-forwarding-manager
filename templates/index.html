@@ -5,7 +5,6 @@
 <section class="dashboard-hero">
   <div>
     <h1>Dashboard</h1>
-    <p>Host and server status.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="{{ url_for('new_server') }}">+ Create server</a>
@@ -16,6 +15,10 @@
 <section class="card host-card">
   <div class="section-heading"><h2>Host</h2><span id="last-updated" class="update-pill">Loading…</span></div>
   <div id="host-grid" class="metric-grid"><p class="muted">Loading host information…</p></div>
+  <details class="panel-section host-details">
+    <summary>More host details</summary>
+    <div id="host-more-grid" class="metric-grid"></div>
+  </details>
 </section>
 
 <div class="content-heading"><h2>Servers</h2></div>
