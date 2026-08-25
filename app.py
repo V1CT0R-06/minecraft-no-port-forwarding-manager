@@ -6,12 +6,21 @@ import socket
 from functools import wraps
 from pathlib import Path
 
-from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
-env_file = Path(__file__).with_name(".env")
-if os.access(env_file, os.R_OK):
-    load_dotenv(env_file)
+
+def load_env_file(path):
+    """Load simple KEY=value settings without another dependency."""
+    if not os.access(path, os.R_OK):
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file(Path(__file__).with_name(".env"))
 
 # These modules read a few machine-specific paths from the environment, so the
 # ignored local .env file must be loaded before importing them in development.
@@ -66,6 +75,18 @@ def create_app(test_config=None):
         supplied = request.headers.get("X-CSRF-Token") or request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")
         return bool(expected and hmac.compare_digest(supplied, expected))
+
+    def csrf_required(view):
+        """Protect API routes that change data."""
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not check_csrf():
+                return api_error("Invalid CSRF token", 403)
+            return view(*args, **kwargs)
+        return wrapped
+
+    def json_body():
+        return request.get_json(silent=True) or {}
 
     def api_error(message, status=400):
         return jsonify({"ok": False, "error": message}), status
@@ -186,11 +207,10 @@ def create_app(test_config=None):
 
     @app.post("/api/servers/review")
     @login_required
+    @csrf_required
     def review_server():
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
         try:
-            settings = server_manager.validate_server_settings(request.get_json(silent=True) or {})
+            settings = server_manager.validate_server_settings(json_body())
             servers, docker_error = docker_manager.get_servers_status()
             if docker_error:
                 return api_error("Docker information is unavailable", 503)
@@ -226,10 +246,9 @@ def create_app(test_config=None):
 
     @app.post("/api/servers/create")
     @login_required
+    @csrf_required
     def create_server():
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
-        body = request.get_json(silent=True) or {}
+        body = json_body()
         if body.get("confirm_create") is not True:
             return api_error("Review and confirm the server before creating it")
         try:
@@ -262,8 +281,6 @@ def create_app(test_config=None):
         })
 
     def perform_action(server_key, action):
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
         try:
             server = docker_manager.get_server(server_key)
             docker_manager.control_server(server_key, action)
@@ -275,14 +292,13 @@ def create_app(test_config=None):
 
     @app.post("/api/servers/<server_key>/start")
     @login_required
+    @csrf_required
     def server_start(server_key):
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
         try:
             registered = docker_manager.get_server(server_key)
         except ValueError as exc:
             return api_error(str(exc), 404)
-        if registered.get("warn_before_start") and (request.get_json(silent=True) or {}).get("confirm_memory_warning") is not True:
+        if registered.get("warn_before_start") and json_body().get("confirm_memory_warning") is not True:
             host = system_info.get_host_status()
             servers, _ = docker_manager.get_servers_status()
             server = servers[server_key]
@@ -300,16 +316,19 @@ def create_app(test_config=None):
 
     @app.post("/api/servers/<server_key>/stop")
     @login_required
+    @csrf_required
     def server_stop(server_key): return perform_action(server_key, "stop")
 
     @app.post("/api/servers/<server_key>/restart")
     @login_required
+    @csrf_required
     def server_restart(server_key): return perform_action(server_key, "restart")
 
-    def memory_action(server_key):
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
-        body = request.get_json(silent=True) or {}
+    @app.post("/api/servers/<server_key>/memory")
+    @login_required
+    @csrf_required
+    def server_memory(server_key):
+        body = json_body()
         try:
             new_memory = docker_manager.normalize_memory(body.get("memory", ""))
             new_bytes = docker_manager.parse_memory(new_memory)
@@ -351,14 +370,8 @@ def create_app(test_config=None):
         except Exception as exc:
             return api_error(str(exc), 500)
 
-    @app.post("/api/servers/<server_key>/memory")
-    @login_required
-    def server_memory(server_key): return memory_action(server_key)
-
     def whitelist_action(server_key, action):
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
-        username = (request.get_json(silent=True) or {}).get("username", "")
+        username = json_body().get("username", "")
         try:
             if action == "add":
                 message = minecraft.add_to_whitelist(server_key, username)
@@ -372,16 +385,19 @@ def create_app(test_config=None):
 
     @app.post("/api/servers/<server_key>/whitelist/add")
     @login_required
+    @csrf_required
     def server_whitelist_add(server_key): return whitelist_action(server_key, "add")
 
     @app.post("/api/servers/<server_key>/whitelist/remove")
     @login_required
+    @csrf_required
     def server_whitelist_remove(server_key): return whitelist_action(server_key, "remove")
 
-    def console_command(server_key):
-        if not check_csrf():
-            return api_error("Invalid CSRF token", 403)
-        command = (request.get_json(silent=True) or {}).get("command", "")
+    @app.post("/api/servers/<server_key>/console")
+    @login_required
+    @csrf_required
+    def server_console(server_key):
+        command = json_body().get("command", "")
         try:
             return jsonify({"ok": True, "result": minecraft.send_command(server_key, command)})
         except ValueError as exc:
@@ -389,19 +405,13 @@ def create_app(test_config=None):
         except Exception as exc:
             return api_error(str(exc), 500)
 
-    @app.post("/api/servers/<server_key>/console")
+    @app.get("/api/servers/<server_key>/logs")
     @login_required
-    def server_console(server_key): return console_command(server_key)
-
-    def logs(server_key):
+    def server_logs(server_key):
         try:
             return jsonify({"ok": True, "logs": docker_manager.get_recent_logs(server_key)})
         except Exception as exc:
             return api_error(str(exc), 500)
-
-    @app.get("/api/servers/<server_key>/logs")
-    @login_required
-    def server_logs(server_key): return logs(server_key)
 
     return app
 
