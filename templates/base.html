@@ -12,13 +12,13 @@
     <div class="nav-shell">
       <a class="brand" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">
         <span class="brand-mark" aria-hidden="true">M</span>
-        <span><strong>{{ panel_title }}</strong><small>Your servers, in one place</small></span>
+        <span><strong>{{ panel_title }}</strong><small>Simple server manager</small></span>
       </a>
     {% if session.get('logged_in') %}
       <nav class="main-nav" aria-label="Main navigation">
         <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Dashboard</a>
-        <a href="{{ url_for('new_server') }}" class="{{ 'active' if request.endpoint == 'new_server' else '' }}">New server</a>
-        <a href="{{ url_for('tutorial') }}" class="{{ 'active' if request.endpoint == 'tutorial' else '' }}">Help</a>
+        <a href="{{ url_for('new_server') }}" class="{{ 'active' if request.endpoint == 'new_server' else '' }}">Create server</a>
+        <a href="{{ url_for('tutorial') }}" class="{{ 'active' if request.endpoint == 'tutorial' else '' }}">Tutorial</a>
       </nav>
       <form method="post" action="{{ url_for('logout') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

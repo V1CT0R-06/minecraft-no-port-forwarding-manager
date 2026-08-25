@@ -2,11 +2,11 @@
 {% block title %}Create Server — Minecraft Homelab{% endblock %}
 {% block content %}
 <div id="message" class="message hidden"></div>
-<div class="page-actions"><a class="back-link" href="{{ url_for('index') }}">← Back to your servers</a></div>
+<div class="page-actions"><a class="button secondary" href="{{ url_for('index') }}">← Dashboard</a></div>
 
 <section class="card">
-  <h1>Create a server</h1>
-  <p class="muted">Choose the basics now. You'll review everything before anything is created.</p>
+  <h2>Create Server</h2>
+  <p class="muted">Review everything before any directory, Compose project, or container is created.</p>
   <div class="metric-grid compact-grid">
     <div class="metric"><span class="metric-label">Host RAM</span><span class="metric-value">{{ host.ram_total_gib }} GiB</span></div>
     <div class="metric"><span class="metric-label">Available now</span><span class="metric-value">{{ host.ram_available_gib }} GiB</span></div>

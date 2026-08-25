@@ -4,22 +4,22 @@
 
 <section class="dashboard-hero">
   <div>
-    <p class="welcome">Welcome back</p>
-    <h1>How's everything running?</h1>
-    <p>Check your machine, look after your servers, and invite friends when you're ready.</p>
+    <span class="eyebrow">Control centre</span>
+    <h1>Your Minecraft homelab, at a glance.</h1>
+    <p>Monitor the host, manage servers, whitelist friends, and follow guided networking setup—all without reaching for SSH.</p>
   </div>
   <div class="hero-actions">
-    <a class="button primary" href="{{ url_for('new_server') }}">Create a server</a>
-    <a class="button secondary" href="{{ url_for('tutorial') }}">Get help</a>
+    <a class="button primary" href="{{ url_for('new_server') }}">+ Create server</a>
+    <a class="button secondary" href="{{ url_for('tutorial') }}">Read the tutorial</a>
   </div>
 </section>
 
 <section class="card host-card">
-  <div class="section-heading"><div><h2>Your homelab</h2><p class="section-copy">A quick look at the machine running Minecraft.</p></div><span id="last-updated" class="update-pill">Loading…</span></div>
+  <div class="section-heading"><div><span class="eyebrow">Machine health</span><h2>Host</h2></div><span id="last-updated" class="update-pill">Loading…</span></div>
   <div id="host-grid" class="metric-grid"><p class="muted">Loading host information…</p></div>
 </section>
 
-<div class="content-heading"><div><h2>Your servers</h2><p class="section-copy">Start, stop, and manage the Minecraft servers you have added.</p></div></div>
+<div class="content-heading"><div><span class="eyebrow">Instances</span><h2>Minecraft servers</h2></div><p class="muted">Only registered containers can be controlled.</p></div>
 <section id="server-grid" class="server-grid">
   <article class="card server-card"><p class="muted">Loading Minecraft servers…</p></article>
 </section>
