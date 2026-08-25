@@ -32,7 +32,7 @@ After installing the panel, sign in and open **Tutorial** in the top navigation.
 1. architecture and requirements;
 2. official Docker installation;
 3. panel and systemd deployment;
-4. secrets and password hashing;
+4. login setup;
 5. importing or creating servers;
 6. Playit and domain setup;
 7. whitelist, console, and logs;
@@ -54,19 +54,14 @@ cp config/servers.example.json config/servers.json
 
 The panel can also start without `config/servers.json`; it will show an empty dashboard and create the registry when the first server is created.
 
-Generate a session secret:
+Open `.env` and choose your login:
 
-```bash
-.venv/bin/python -c 'import secrets; print(secrets.token_hex(32))'
+```text
+PANEL_USERNAME=admin
+PANEL_PASSWORD=choose-a-long-password
 ```
 
-Generate the administrator password hash:
-
-```bash
-.venv/bin/python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass("Panel password: ")))'
-```
-
-Put the outputs in `.env`. Never put the plaintext password there.
+The `.env` file is ignored by Git. Do not publish it.
 
 ## Configuration
 
@@ -89,9 +84,9 @@ Important environment variables:
 
 | Variable | Purpose |
 |---|---|
-| `PANEL_SECRET_KEY` | Signs Flask sessions |
 | `PANEL_USERNAME` | Single administrator username |
-| `PANEL_PASSWORD_HASH` | Secure administrator password hash |
+| `PANEL_PASSWORD` | Single administrator password |
+| `PANEL_SECRET_KEY` | Optional custom Flask session key |
 | `PANEL_HOST` / `PANEL_PORT` | Development server bind address |
 | `PANEL_TITLE` | Name shown in the UI |
 | `PLAYIT_AGENT_NAME` | Agent label shown in instructions |

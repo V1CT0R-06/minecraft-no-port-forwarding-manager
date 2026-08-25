@@ -4,7 +4,7 @@
 <section class="tutorial-hero">
   <span class="eyebrow">Start to finish</span>
   <h1>Build your own Minecraft homelab.</h1>
-  <p>This guide explains the whole system—not only which buttons to press. Follow it in order for a new Ubuntu server, or jump to the section you need.</p>
+  <p>Follow the guide in order, or jump to the part you need.</p>
   <p class="current-install">This panel currently runs from <code>{{ project_path }}</code>. The clean-install examples use <code>/opt/minecraft-panel</code>; substitute your real path when maintaining an existing installation.</p>
 </section>
 
@@ -80,14 +80,9 @@ sudo cp config/servers.example.json config/servers.json</code></pre>
     <section id="secrets" class="card tutorial-section">
       <span class="step-number">05</span><h2>Configure secrets</h2>
       <h3>Panel login</h3>
-      <p>Generate a Flask session secret and a password hash. Never save the plaintext password in Git.</p>
-      <pre class="code-block"><code>cd /opt/minecraft-panel
-.venv/bin/python -c 'import secrets; print(secrets.token_hex(32))'
-.venv/bin/python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass("Panel password: ")))'</code></pre>
-      <p>Edit <code>/opt/minecraft-panel/.env</code> and set:</p>
-      <pre class="code-block"><code>PANEL_SECRET_KEY=paste-the-random-session-secret
-PANEL_USERNAME=your-admin-name
-PANEL_PASSWORD_HASH=paste-the-password-hash
+      <p>Edit <code>/opt/minecraft-panel/.env</code> and choose your login:</p>
+      <pre class="code-block"><code>PANEL_USERNAME=admin
+PANEL_PASSWORD=choose-a-long-password
 PANEL_HOST=0.0.0.0
 PANEL_PORT=8080
 PANEL_TITLE=My Minecraft Homelab
@@ -104,7 +99,7 @@ sudoedit /etc/minecraft-panel/minecraft.env</code></pre>
       <p>Then protect both files:</p>
       <pre class="code-block"><code>sudo chown root:minecraft-panel /opt/minecraft-panel/.env /etc/minecraft-panel/minecraft.env
 sudo chmod 0640 /opt/minecraft-panel/.env /etc/minecraft-panel/minecraft.env</code></pre>
-      <p>To change the panel password later, generate a new hash with the same command, replace only <code>PANEL_PASSWORD_HASH</code>, and restart <code>minecraft-panel</code>. Change the login name with <code>PANEL_USERNAME</code>.</p>
+      <p>To change the login later, edit <code>PANEL_USERNAME</code> or <code>PANEL_PASSWORD</code>, then restart the panel.</p>
     </section>
 
     <section id="service" class="card tutorial-section">

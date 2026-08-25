@@ -1,4 +1,5 @@
 import hmac
+import hashlib
 import os
 import secrets
 import socket
@@ -7,7 +8,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
-from werkzeug.security import check_password_hash
 
 env_file = Path(__file__).with_name(".env")
 if os.access(env_file, os.R_OK):
@@ -23,11 +23,21 @@ import system_info
 
 
 def create_app(test_config=None):
+    username = os.getenv("PANEL_USERNAME", "admin")
+    password = os.getenv("PANEL_PASSWORD", "")
+    secret_key = os.getenv("PANEL_SECRET_KEY")
+    if not secret_key and password:
+        # Flask needs a stable signing key for login sessions. Deriving it here
+        # keeps setup simple while still preventing clients from editing cookies.
+        secret_key = hashlib.sha256(
+            f"minecraft-panel:{username}:{password}".encode()
+        ).hexdigest()
+
     app = Flask(__name__)
     app.config.update(
-        SECRET_KEY=os.getenv("PANEL_SECRET_KEY"),
-        USERNAME=os.getenv("PANEL_USERNAME", "homelab"),
-        PASSWORD_HASH=os.getenv("PANEL_PASSWORD_HASH"),
+        SECRET_KEY=secret_key,
+        USERNAME=username,
+        PASSWORD=password,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.getenv("PANEL_COOKIE_SECURE", "false").lower() == "true",
@@ -79,12 +89,13 @@ def create_app(test_config=None):
     def login_post():
         if not check_csrf():
             return render_template("login.html", error="Your login form expired. Please try again."), 400
-        password_hash = app.config.get("PASSWORD_HASH")
+        expected_password = app.config.get("PASSWORD", "")
         expected_username = app.config.get("USERNAME", "")
         username = request.form.get("username", "")
         password = request.form.get("password", "")
         username_matches = hmac.compare_digest(username, expected_username)
-        if username_matches and password_hash and check_password_hash(password_hash, password):
+        password_matches = bool(expected_password) and hmac.compare_digest(password, expected_password)
+        if username_matches and password_matches:
             session.clear()
             session["logged_in"] = True
             csrf_token()
@@ -399,8 +410,8 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    if not app.config.get("SECRET_KEY") or not app.config.get("PASSWORD_HASH"):
-        raise SystemExit("Set PANEL_SECRET_KEY and PANEL_PASSWORD_HASH in .env first. See README.md.")
+    if not app.config.get("PASSWORD"):
+        raise SystemExit("Set PANEL_USERNAME and PANEL_PASSWORD in .env first. See README.md.")
     app.run(
         host=os.getenv("PANEL_HOST", "127.0.0.1"),
         port=int(os.getenv("PANEL_PORT", "8080")),

@@ -12,7 +12,7 @@
     <div class="nav-shell">
       <a class="brand" href="{{ url_for('index') if session.get('logged_in') else url_for('login') }}">
         <span class="brand-mark" aria-hidden="true">M</span>
-        <span><strong>{{ panel_title }}</strong><small>Simple server manager</small></span>
+        <span><strong>{{ panel_title }}</strong><small>Server manager</small></span>
       </a>
     {% if session.get('logged_in') %}
       <nav class="main-nav" aria-label="Main navigation">

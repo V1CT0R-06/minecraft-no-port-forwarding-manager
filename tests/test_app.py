@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-from werkzeug.security import generate_password_hash
-
 from app import create_app
 
 
@@ -10,7 +8,7 @@ def make_client():
         "TESTING": True,
         "SECRET_KEY": "test-only-secret",
         "USERNAME": "homelab",
-        "PASSWORD_HASH": generate_password_hash("correct-password"),
+        "PASSWORD": "correct-password",
     })
     return app.test_client()
 
@@ -43,7 +41,7 @@ def test_tutorial_requires_login_and_renders_full_setup_guide():
     assert b"Back up worlds" in response.data
 
 
-def test_login_accepts_hash_and_rejects_wrong_password():
+def test_login_accepts_password_and_rejects_wrong_password():
     client = make_client()
     client.get("/login")
     assert client.post("/login", data={"username": "homelab", "password": "wrong", "csrf_token": get_csrf(client)}).status_code == 401

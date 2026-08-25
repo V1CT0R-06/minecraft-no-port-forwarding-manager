@@ -4,13 +4,13 @@
 
 <section class="dashboard-hero">
   <div>
-    <span class="eyebrow">Control centre</span>
-    <h1>Your Minecraft homelab, at a glance.</h1>
-    <p>Monitor the host, manage servers, whitelist friends, and follow guided networking setup—all without reaching for SSH.</p>
+    <span class="eyebrow">Home</span>
+    <h1>Minecraft at a glance.</h1>
+    <p>Check the host and manage your servers.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="{{ url_for('new_server') }}">+ Create server</a>
-    <a class="button secondary" href="{{ url_for('tutorial') }}">Read the tutorial</a>
+    <a class="button secondary" href="{{ url_for('tutorial') }}">Get help</a>
   </div>
 </section>
 
@@ -19,7 +19,7 @@
   <div id="host-grid" class="metric-grid"><p class="muted">Loading host information…</p></div>
 </section>
 
-<div class="content-heading"><div><span class="eyebrow">Instances</span><h2>Minecraft servers</h2></div><p class="muted">Only registered containers can be controlled.</p></div>
+<div class="content-heading"><div><span class="eyebrow">Servers</span><h2>Minecraft servers</h2></div></div>
 <section id="server-grid" class="server-grid">
   <article class="card server-card"><p class="muted">Loading Minecraft servers…</p></article>
 </section>

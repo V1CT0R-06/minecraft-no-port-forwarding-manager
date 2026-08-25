@@ -3,7 +3,7 @@
 {% block content %}
 <section class="login-card card">
   <h2>Administrator login</h2>
-  <p class="muted">This panel controls Minecraft. Enter your panel password.</p>
+  <p class="muted">Sign in to manage your servers.</p>
   {% if error %}<p class="message error">{{ error }}</p>{% endif %}
   <form method="post" action="{{ url_for('login_post') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
