@@ -1,5 +1,5 @@
 [Unit]
-Description=Minecraft Homelab Web Panel
+Description=Minecraft No-Port-Forwarding Manager
 After=docker.service network-online.target
 Wants=network-online.target
 Requires=docker.service

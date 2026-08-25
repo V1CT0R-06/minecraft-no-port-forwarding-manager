@@ -89,7 +89,7 @@ def create_app(test_config=None):
     def template_values():
         return {
             "csrf_token": csrf_token,
-            "panel_title": "Minecraft Homelab",
+            "panel_title": "No-Port Minecraft Manager",
             "dns_zone": network_manager.DNS_ZONE,
         }
 

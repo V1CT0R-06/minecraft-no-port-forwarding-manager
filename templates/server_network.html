@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ server.label }} Network — Minecraft Homelab{% endblock %}
+{% block title %}{{ server.label }} Network — Minecraft Manager{% endblock %}
 {% block content %}
 <div class="page-actions"><a class="button secondary" href="{{ url_for('index') }}">← Dashboard</a></div>
 {% if saved %}<p class="message success">Playit endpoint saved. The panel did not modify the Playit tunnel.</p>{% endif %}

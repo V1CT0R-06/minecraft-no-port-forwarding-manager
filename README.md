@@ -1,10 +1,10 @@
-# Minecraft Homelab Panel
+# Minecraft No-Port-Forwarding Manager
 
-A small, understandable Minecraft server manager for Linux homelabs.
+A small tool for creating and managing Minecraft servers without router port forwarding.
 
 Licensed under the MIT License. You may use, change, and share it.
 
-Project: https://github.com/V1CT0R-06/minecraft-panel
+Project: https://github.com/V1CT0R-06/minecraft-no-port-forwarding-manager
 
 It uses only:
 
@@ -46,7 +46,7 @@ After installing the panel, sign in and open **Tutorial** in the top navigation.
 ## Quick development setup
 
 ```bash
-git clone https://github.com/V1CT0R-06/minecraft-panel.git
+git clone https://github.com/V1CT0R-06/minecraft-no-port-forwarding-manager.git minecraft-panel
 cd minecraft-panel
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
