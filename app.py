@@ -182,7 +182,7 @@ def create_app(test_config=None):
             ), 400
         try:
             server_manager.delete_removed_server(archive_name)
-        except ValueError as exc:
+        except (ValueError, OSError) as exc:
             return render_template(
                 "removed.html",
                 archives=server_manager.list_removed_servers(),

@@ -314,6 +314,19 @@ def remove_server(server_id):
         if not os.access(archive_root, os.W_OK):
             raise PermissionError(f"The panel cannot write to the archive folder: {archive_root}")
 
+        # Minecraft images commonly change /data to UID 1000. Use the same
+        # Compose service to hand the files back to this panel before archiving.
+        subprocess.run(
+            [
+                "docker", "compose", "-f", str(compose_file), "run", "--rm",
+                "--no-deps", "--entrypoint", "chown", server["compose_service"],
+                "-R", f"{os.getuid()}:{os.getgid()}", "/data",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
         subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "down"],
             check=True,

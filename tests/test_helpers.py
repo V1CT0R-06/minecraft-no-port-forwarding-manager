@@ -194,7 +194,7 @@ def test_remove_managed_server_archives_files(tmp_path, monkeypatch):
     (server_directory / "data").mkdir()
     registry = tmp_path / "servers.json"
     registry.write_text(
-        '{"test": {"managed": true, "compose_file": "' + str(compose) + '"}}\n',
+        '{"test": {"managed": true, "compose_service": "server", "compose_file": "' + str(compose) + '"}}\n',
         encoding="utf-8",
     )
     monkeypatch.setattr(server_manager, "SERVER_ROOT", server_root)
