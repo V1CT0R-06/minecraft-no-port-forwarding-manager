@@ -9,7 +9,7 @@
   <h2>{{ server.label }} — Network</h2>
   <div class="details">
     <div class="row"><span>Desired public address</span><strong>{{ server.public_hostname or "Not configured" }}</strong></div>
-    <div class="row"><span>Playit agent</span><strong class="{{ 'online' if playit_status == 'running' else 'warning' }}">{{ playit_agent_name }} — {{ playit_status.title() }}</strong></div>
+    <div class="row"><span>Playit agent</span><strong class="{{ 'online' if playit_status == 'running' else 'warning' }}">{{ playit_status.title() }}</strong></div>
     <div class="row"><span>Local endpoint</span><strong>{{ local_endpoint or "Existing Docker-network tunnel" }}</strong></div>
     <div class="row"><span>Local listener</span><strong>{{ local_status.replace('_', ' ').title() }}</strong></div>
     <div class="row"><span>Playit setup</span><strong>{{ server.playit_status.replace('_', ' ').title() }}</strong></div>
@@ -23,7 +23,7 @@
   <ol class="setup-steps">
     <li>Make sure this Minecraft server is running. The local listener above should say <strong>Listening</strong>.</li>
     <li>Open <a href="https://playit.gg/account/tunnels" target="_blank" rel="noopener noreferrer">Playit Tunnels</a> and sign in.</li>
-    <li>Create a <strong>Minecraft Java</strong> tunnel assigned to the existing <strong>{{ playit_agent_name }}</strong> agent.</li>
+    <li>Create a <strong>Minecraft Java</strong> tunnel assigned to your existing agent.</li>
     <li>Set the local IP to <code>127.0.0.1</code> and local port to <code>{{ server.local_port }}</code>.</li>
     <li>Save the tunnel, then copy the assigned Playit hostname or IP and port into the field below.</li>
   </ol>

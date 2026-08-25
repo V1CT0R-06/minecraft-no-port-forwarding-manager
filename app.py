@@ -2,7 +2,6 @@ import hmac
 import hashlib
 import os
 import secrets
-import socket
 from functools import wraps
 from pathlib import Path
 
@@ -34,13 +33,11 @@ import system_info
 def create_app(test_config=None):
     username = os.getenv("PANEL_USERNAME", "admin")
     password = os.getenv("PANEL_PASSWORD", "")
-    secret_key = os.getenv("PANEL_SECRET_KEY")
-    if not secret_key and password:
-        # Flask needs a stable signing key for login sessions. Deriving it here
-        # keeps setup simple while still preventing clients from editing cookies.
-        secret_key = hashlib.sha256(
-            f"minecraft-panel:{username}:{password}".encode()
-        ).hexdigest()
+    # Changing the login also invalidates old sessions. No extra secret setting
+    # is needed during setup.
+    secret_key = hashlib.sha256(
+        f"minecraft-panel:{username}:{password}".encode()
+    ).hexdigest()
 
     app = Flask(__name__)
     app.config.update(
@@ -49,9 +46,6 @@ def create_app(test_config=None):
         PASSWORD=password,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=os.getenv("PANEL_COOKIE_SECURE", "false").lower() == "true",
-        PANEL_TITLE=os.getenv("PANEL_TITLE", "Minecraft Homelab"),
-        PLAYIT_AGENT_NAME=os.getenv("PLAYIT_AGENT_NAME", socket.gethostname()),
     )
     if test_config:
         app.config.update(test_config)
@@ -95,8 +89,7 @@ def create_app(test_config=None):
     def template_values():
         return {
             "csrf_token": csrf_token,
-            "panel_title": app.config["PANEL_TITLE"],
-            "playit_agent_name": app.config["PLAYIT_AGENT_NAME"],
+            "panel_title": "Minecraft Homelab",
             "dns_zone": network_manager.DNS_ZONE,
         }
 
@@ -199,7 +192,6 @@ def create_app(test_config=None):
             local_endpoint=local_endpoint,
             local_status=server_manager.local_port_status(server),
             playit_status=system_info.get_playit_status(),
-            playit_agent_name=app.config["PLAYIT_AGENT_NAME"],
             error=error,
             saved=saved,
             dns=dns,
@@ -399,7 +391,7 @@ if __name__ == "__main__":
     if not app.config.get("PASSWORD"):
         raise SystemExit("Set PANEL_USERNAME and PANEL_PASSWORD in .env first. See README.md.")
     app.run(
-        host=os.getenv("PANEL_HOST", "127.0.0.1"),
-        port=int(os.getenv("PANEL_PORT", "8080")),
+        host="0.0.0.0",
+        port=8080,
         debug=False,
     )

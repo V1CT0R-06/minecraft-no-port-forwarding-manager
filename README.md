@@ -90,10 +90,6 @@ Important environment variables:
 |---|---|
 | `PANEL_USERNAME` | Single administrator username |
 | `PANEL_PASSWORD` | Single administrator password |
-| `PANEL_SECRET_KEY` | Optional custom Flask session key |
-| `PANEL_HOST` / `PANEL_PORT` | Development server bind address |
-| `PANEL_TITLE` | Name shown in the UI |
-| `PLAYIT_AGENT_NAME` | Agent label shown in instructions |
 | `MINECRAFT_DNS_ZONE` | Your DNS zone, such as `example.com` |
 | `MINECRAFT_SERVER_ROOT` | Parent directory for new servers |
 | `MINECRAFT_SHARED_ENV_FILE` | Secret environment file used by new Minecraft containers |
