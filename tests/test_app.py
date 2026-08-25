@@ -35,7 +35,7 @@ def test_tutorial_requires_login_and_renders_full_setup_guide():
     login(client)
     response = client.get("/tutorial")
     assert response.status_code == 200
-    assert b"Build your own Minecraft homelab" in response.data
+    assert b"Setup guide" in response.data
     assert b"Install Docker" in response.data
     assert b"Configure Playit" in response.data
     assert b"Back up worlds" in response.data

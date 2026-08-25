@@ -4,9 +4,8 @@
 
 <section class="dashboard-hero">
   <div>
-    <span class="eyebrow">Home</span>
-    <h1>Minecraft at a glance.</h1>
-    <p>Check the host and manage your servers.</p>
+    <h1>Dashboard</h1>
+    <p>Host and server status.</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="{{ url_for('new_server') }}">+ Create server</a>
@@ -15,11 +14,11 @@
 </section>
 
 <section class="card host-card">
-  <div class="section-heading"><div><span class="eyebrow">Machine health</span><h2>Host</h2></div><span id="last-updated" class="update-pill">Loading…</span></div>
+  <div class="section-heading"><h2>Host</h2><span id="last-updated" class="update-pill">Loading…</span></div>
   <div id="host-grid" class="metric-grid"><p class="muted">Loading host information…</p></div>
 </section>
 
-<div class="content-heading"><div><span class="eyebrow">Servers</span><h2>Minecraft servers</h2></div></div>
+<div class="content-heading"><h2>Servers</h2></div>
 <section id="server-grid" class="server-grid">
   <article class="card server-card"><p class="muted">Loading Minecraft servers…</p></article>
 </section>
