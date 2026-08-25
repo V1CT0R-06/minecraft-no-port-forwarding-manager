@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Tutorial — {{ panel_title }}{% endblock %}
+{% block content %}
+<section class="tutorial-hero">
+  <span class="eyebrow">Start to finish</span>
+  <h1>Build your own Minecraft homelab.</h1>
+  <p>This guide explains the whole system—not only which buttons to press. Follow it in order for a new Ubuntu server, or jump to the section you need.</p>
+  <p class="current-install">This panel currently runs from <code>{{ project_path }}</code>. The clean-install examples use <code>/opt/minecraft-panel</code>; substitute your real path when maintaining an existing installation.</p>
+</section>
+
+<div class="tutorial-layout">
+  <aside class="tutorial-nav card">
+    <strong>On this page</strong>
+    <a href="#understand">1. Understand the design</a>
+    <a href="#requirements">2. Requirements</a>
+    <a href="#docker">3. Install Docker</a>
+    <a href="#project">4. Install the panel</a>
+    <a href="#secrets">5. Configure secrets</a>
+    <a href="#service">6. Run at boot</a>
+    <a href="#existing">7. Import a server</a>
+    <a href="#create">8. Create a server</a>
+    <a href="#playit">9. Configure Playit</a>
+    <a href="#dns">10. Configure DNS</a>
+    <a href="#players">11. Players and whitelist</a>
+    <a href="#memory">12. Memory</a>
+    <a href="#backups">13. Backups</a>
+    <a href="#update">14. Update safely</a>
+    <a href="#troubleshooting">15. Troubleshooting</a>
+    <a href="#share">16. Share the project</a>
+  </aside>
+
+  <article class="tutorial-content">
+    <section id="understand" class="card tutorial-section">
+      <span class="step-number">01</span><h2>Understand the design</h2>
+      <p>The panel is a small Flask application. Jinja produces HTML, one CSS file controls appearance, and a little browser JavaScript refreshes status and submits forms. There is no Node.js, database, Redis, frontend framework, or build process.</p>
+      <div class="flow-diagram"><span>Player</span><b>→</b><span>Your DNS name</span><b>→</b><span>Playit</span><b>→</b><span>127.0.0.1:port</span><b>→</b><span>Docker</span><b>→</b><span>Minecraft</span></div>
+      <p>LAN and NetBird are for opening the private panel. Playit is for public Minecraft traffic. You do not need router port forwarding or a Cloudflare Tunnel.</p>
+    </section>
+
+    <section id="requirements" class="card tutorial-section">
+      <span class="step-number">02</span><h2>Requirements</h2>
+      <ul class="check-list">
+        <li>Ubuntu Server 22.04, 24.04, or another current Docker-supported Linux distribution</li>
+        <li>A 64-bit CPU, SSD storage, and preferably 8 GB RAM or more</li>
+        <li>A normal sudo-capable administrator account</li>
+        <li>Docker Engine and the Docker Compose plugin</li>
+        <li>Python 3 with <code>venv</code>, plus Git and curl</li>
+        <li>Optional: a Playit account and a DNS domain</li>
+      </ul>
+      <div class="callout warning-box"><strong>Memory matters.</strong> Two modded servers can exhaust an 8 GB host. The panel reads real RAM at runtime and warns you, but it cannot create physical memory.</div>
+    </section>
+
+    <section id="docker" class="card tutorial-section">
+      <span class="step-number">03</span><h2>Install Docker</h2>
+      <p>Use Docker's official Ubuntu repository, not a random installation script. The exact repository commands can change, so start with the official guide:</p>
+      <p><a href="https://docs.docker.com/engine/install/ubuntu/" target="_blank" rel="noopener noreferrer">Docker Engine installation for Ubuntu</a></p>
+      <p>After the repository is configured, the packages are:</p>
+      <pre class="code-block"><code>sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo docker run --rm hello-world
+sudo docker compose version</code></pre>
+      <p>Docker access is effectively root access. Do not expose the Docker socket over TCP and do not make it world-writable.</p>
+    </section>
+
+    <section id="project" class="card tutorial-section">
+      <span class="step-number">04</span><h2>Install the panel</h2>
+      <p>Put the code in a predictable location. Replace the repository placeholder after downloading or publishing your copy.</p>
+      <pre class="code-block"><code>sudo apt install python3 python3-venv git curl acl
+sudo useradd --system --home /nonexistent --shell /usr/sbin/nologin minecraft-panel
+sudo git clone YOUR_REPOSITORY_URL /opt/minecraft-panel
+cd /opt/minecraft-panel
+sudo python3 -m venv .venv
+sudo .venv/bin/pip install -r requirements.txt
+sudo cp .env.example .env
+sudo cp config/servers.example.json config/servers.json</code></pre>
+      <p>A Python virtual environment keeps the panel's few Python packages separate from Ubuntu. It is disposable; application data does not belong inside <code>.venv</code>.</p>
+    </section>
+
+    <section id="secrets" class="card tutorial-section">
+      <span class="step-number">05</span><h2>Configure secrets</h2>
+      <h3>Panel login</h3>
+      <p>Generate a Flask session secret and a password hash. Never save the plaintext password in Git.</p>
+      <pre class="code-block"><code>cd /opt/minecraft-panel
+.venv/bin/python -c 'import secrets; print(secrets.token_hex(32))'
+.venv/bin/python -c 'from getpass import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass("Panel password: ")))'</code></pre>
+      <p>Edit <code>/opt/minecraft-panel/.env</code> and set:</p>
+      <pre class="code-block"><code>PANEL_SECRET_KEY=paste-the-random-session-secret
+PANEL_USERNAME=your-admin-name
+PANEL_PASSWORD_HASH=paste-the-password-hash
+PANEL_HOST=0.0.0.0
+PANEL_PORT=8080
+PANEL_TITLE=My Minecraft Homelab
+PLAYIT_AGENT_NAME=my-server-hostname
+MINECRAFT_DNS_ZONE=example.com
+MINECRAFT_SERVER_ROOT=/srv/minecraft/servers
+MINECRAFT_SHARED_ENV_FILE=/etc/minecraft-panel/minecraft.env</code></pre>
+      <h3>Minecraft RCON</h3>
+      <p>Create a separate file used only by generated Minecraft Compose projects:</p>
+      <pre class="code-block"><code>sudo install -d -m 0750 -o root -g minecraft-panel /etc/minecraft-panel
+sudoedit /etc/minecraft-panel/minecraft.env</code></pre>
+      <p>Put one strong random value inside:</p>
+      <pre class="code-block"><code>RCON_PASSWORD=replace-with-a-long-random-secret</code></pre>
+      <p>Then protect both files:</p>
+      <pre class="code-block"><code>sudo chown root:minecraft-panel /opt/minecraft-panel/.env /etc/minecraft-panel/minecraft.env
+sudo chmod 0640 /opt/minecraft-panel/.env /etc/minecraft-panel/minecraft.env</code></pre>
+      <p>To change the panel password later, generate a new hash with the same command, replace only <code>PANEL_PASSWORD_HASH</code>, and restart <code>minecraft-panel</code>. Change the login name with <code>PANEL_USERNAME</code>.</p>
+    </section>
+
+    <section id="service" class="card tutorial-section">
+      <span class="step-number">06</span><h2>Run the panel at boot</h2>
+      <p>Create the restricted service account and writable server directory:</p>
+      <pre class="code-block"><code>sudo install -d -o root -g minecraft-panel -m 0770 /srv/minecraft/servers
+sudo setfacl -m u:minecraft-panel:rwx,d:u:minecraft-panel:rwx /opt/minecraft-panel/config</code></pre>
+      <p>Install and adapt the example systemd unit. Check every path before starting it.</p>
+      <pre class="code-block"><code>sudo cp deploy/minecraft-panel.service.example /etc/systemd/system/minecraft-panel.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now minecraft-panel
+sudo systemctl status minecraft-panel --no-pager</code></pre>
+      <div class="callout danger-box"><strong>Security:</strong> membership in the Docker group is root-equivalent. Keep authentication enabled, use LAN/NetBird only, and never publish port 8080 directly to the Internet.</div>
+    </section>
+
+    <section id="existing" class="card tutorial-section">
+      <span class="step-number">07</span><h2>Import an existing server</h2>
+      <p>Importing means adding metadata—not moving or recreating the server. First inspect it:</p>
+      <pre class="code-block"><code>{% raw %}sudo docker inspect YOUR_CONTAINER
+sudo docker inspect YOUR_CONTAINER --format '{{ json .Mounts }}'
+sudo docker inspect YOUR_CONTAINER --format '{{ json .Config.Env }}'{% endraw %}</code></pre>
+      <p>Copy <code>config/servers.example.json</code> to <code>config/servers.json</code>, then add an entry with its container name, Compose service/file, persistent data path, server type, and public hostname. Do not put RCON passwords or tokens in JSON.</p>
+      <p>If the Compose file lives outside the panel's normal writable directories, add only that exact file to <code>ReadWritePaths</code> and grant the service account a narrow ACL. This is needed only for RAM editing.</p>
+    </section>
+
+    <section id="create" class="card tutorial-section">
+      <span class="step-number">08</span><h2>Create a Minecraft server</h2>
+      <ol>
+        <li>Open <strong>Create server</strong> in the top navigation.</li>
+        <li>Choose a simple lowercase ID such as <code>creative</code>.</li>
+        <li>Select Vanilla, Paper, Fabric, Forge, or NeoForge.</li>
+        <li>Enter a Minecraft version or use <code>LATEST</code>.</li>
+        <li>Choose Java memory after reading the live host guidance.</li>
+        <li>Enable the whitelist for a private friends-only server.</li>
+        <li>Enter the desired public name, then review every path and resource value.</li>
+        <li>Select <strong>Create</strong>. Watch Recent Logs until Minecraft says it is ready.</li>
+      </ol>
+      <p>New worlds live under <code>{{ server_root }}/SERVER/data</code>. Their Compose file is beside the data directory, so the panel is never the only way to manage them.</p>
+    </section>
+
+    <section id="playit" class="card tutorial-section">
+      <span class="step-number">09</span><h2>Configure Playit</h2>
+      <p>Install the official Linux package by following <a href="https://playit.gg/support/run-on-linux/" target="_blank" rel="noopener noreferrer">Playit's Linux guide</a>. Claim the agent in your Playit account.</p>
+      <ol>
+        <li>Open the server's <strong>Network</strong> section.</li>
+        <li>Confirm the displayed local endpoint says Listening.</li>
+        <li>Open Playit Tunnels and create a Minecraft Java tunnel.</li>
+        <li>Select your agent and copy the exact <code>127.0.0.1:PORT</code> destination shown by the panel.</li>
+        <li>Save the tunnel and copy its public endpoint back into the panel.</li>
+      </ol>
+      <p>The panel guides this step because Playit does not publish a simple tunnel-creation API for this use. It never reads the private agent secret.</p>
+    </section>
+
+    <section id="dns" class="card tutorial-section">
+      <span class="step-number">10</span><h2>Configure your domain</h2>
+      <p>After saving the Playit endpoint, the Network page generates exact CNAME and SRV records. Add those records at your DNS provider.</p>
+      <ul>
+        <li>For Cloudflare, use <strong>DNS only</strong> (gray cloud).</li>
+        <li>Do not use Cloudflare Tunnel for Minecraft Java traffic.</li>
+        <li>Wait for DNS propagation, then refresh the Network page until it says Configured.</li>
+      </ul>
+      <p>The panel performs read-only DNS queries. It never changes unrelated records.</p>
+    </section>
+
+    <section id="players" class="card tutorial-section">
+      <span class="step-number">11</span><h2>Players, whitelist, console, and logs</h2>
+      <p>Open a running server card:</p>
+      <ul>
+        <li><strong>Players online</strong> lists connected usernames.</li>
+        <li><strong>Whitelist</strong> adds or removes valid Java usernames through RCON.</li>
+        <li><strong>Minecraft Console</strong> sends only Minecraft commands. It is not a Linux shell.</li>
+        <li><strong>Recent Logs</strong> fetches the latest Docker log lines without live streaming.</li>
+      </ul>
+      <p>If these say unavailable while Docker status works, verify <code>ENABLE_RCON=TRUE</code>, the RCON secret, and container networking.</p>
+    </section>
+
+    <section id="memory" class="card tutorial-section">
+      <span class="step-number">12</span><h2>Change memory safely</h2>
+      <p><strong>Configured Java RAM</strong> is the maximum heap setting. <strong>Current container RAM</strong> is what Docker observes now. They are intentionally shown separately.</p>
+      <ol>
+        <li>Open Resources and enter a value such as <code>4G</code> or <code>4096M</code>.</li>
+        <li>Read the projected heap total and recommended host reserve.</li>
+        <li>Apply only when players can tolerate a restart.</li>
+      </ol>
+      <p>The panel backs up the Compose text, updates its source of truth, and recreates only that container. The persistent <code>/data</code> mount is not deleted.</p>
+    </section>
+
+    <section id="backups" class="card tutorial-section">
+      <span class="step-number">13</span><h2>Back up worlds</h2>
+      <p>Do not treat Docker or RAID as a backup. At minimum, create daily archives on a different disk and retain several generations.</p>
+      <ol>
+        <li>Use RCON <code>save-off</code> and <code>save-all flush</code>, or stop the server cleanly.</li>
+        <li>Archive the server's persistent data directory.</li>
+        <li>Re-enable saving with <code>save-on</code> if the server stayed running.</li>
+        <li>Test restoring an archive into a separate directory.</li>
+      </ol>
+      <div class="callout warning-box">This panel intentionally does not improvise live-world backups. Add a backup button only after your host backup script has been tested independently.</div>
+    </section>
+
+    <section id="update" class="card tutorial-section">
+      <span class="step-number">14</span><h2>Update safely</h2>
+      <h3>Panel code</h3>
+      <pre class="code-block"><code>cd /opt/minecraft-panel
+sudo git pull --ff-only
+sudo .venv/bin/pip install -r requirements.txt
+sudo .venv/bin/pytest
+sudo systemctl restart minecraft-panel</code></pre>
+      <h3>Minecraft</h3>
+      <p>Back up first. Read the server software's release notes and mod/plugin compatibility. Change one server at a time and inspect its logs. Never update a modded server merely because an image tag changed.</p>
+    </section>
+
+    <section id="troubleshooting" class="card tutorial-section">
+      <span class="step-number">15</span><h2>Troubleshooting</h2>
+      <div class="trouble-grid">
+        <div><h3>Panel will not start</h3><pre class="code-block"><code>sudo systemctl status minecraft-panel
+sudo journalctl -u minecraft-panel -n 100</code></pre></div>
+        <div><h3>Docker unavailable</h3><pre class="code-block"><code>sudo systemctl status docker
+sudo -u minecraft-panel id</code></pre></div>
+        <div><h3>Server will not start</h3><pre class="code-block"><code>sudo docker ps -a
+sudo docker logs minecraft-SERVER --tail 100</code></pre></div>
+        <div><h3>Friends cannot connect</h3><p>Check Minecraft locally, then the loopback port, Playit agent/tunnel, SRV record, and finally the public hostname—in that order.</p></div>
+      </div>
+    </section>
+
+    <section id="share" class="card tutorial-section">
+      <span class="step-number">16</span><h2>Share it safely</h2>
+      <p>Before publishing to GitHub or Reddit:</p>
+      <ul class="check-list">
+        <li>Run <code>git status --ignored</code> and confirm <code>.env</code> and <code>config/servers.json</code> are ignored.</li>
+        <li>Search the repository for domains, IP addresses, usernames, hashes, tokens, and RCON passwords.</li>
+        <li>Inspect Git history too. Removing a file in the latest commit does not erase it from older commits; publish a fresh sanitized repository if your development history contains private metadata.</li>
+        <li>Publish <code>.env.example</code> and <code>config/servers.example.json</code>, never your runtime files.</li>
+        <li>Explain that Docker-group access is root-equivalent.</li>
+        <li>Tell users to keep the panel private behind LAN, VPN, or NetBird.</li>
+      </ul>
+      <p>The project deliberately stays small: Python modules for server logic, Jinja HTML templates, one understandable CSS file, and minimal vanilla JavaScript.</p>
+    </section>
+  </article>
+</div>
+{% endblock %}

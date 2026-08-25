@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Create Server — Minecraft Homelab{% endblock %}
+{% block content %}
+<div id="message" class="message hidden"></div>
+<div class="page-actions"><a class="button secondary" href="{{ url_for('index') }}">← Dashboard</a></div>
+
+<section class="card">
+  <h2>Create Server</h2>
+  <p class="muted">Review everything before any directory, Compose project, or container is created.</p>
+  <div class="metric-grid compact-grid">
+    <div class="metric"><span class="metric-label">Host RAM</span><span class="metric-value">{{ host.ram_total_gib }} GiB</span></div>
+    <div class="metric"><span class="metric-label">Available now</span><span class="metric-value">{{ host.ram_available_gib }} GiB</span></div>
+    <div class="metric"><span class="metric-label">Minecraft configured</span><span class="metric-value">{{ resources.minecraft_configured_gib }} GiB</span></div>
+    <div class="metric"><span class="metric-label">Recommended reserve</span><span class="metric-value">{{ resources.recommended_reserve_gib }} GiB</span></div>
+    <div class="metric"><span class="metric-label">Suggested new heap</span><span class="metric-value">{{ resources.planned_heap_headroom_gib }} GiB</span></div>
+    <div class="metric"><span class="metric-label">Next local port</span><span class="metric-value">{{ local_port or "Unavailable" }}</span></div>
+  </div>
+  {% if port_error %}<p class="message error">{{ port_error }}</p>{% endif %}
+
+  <form id="create-server-form" class="form-grid">
+    <label>Server name <input name="server_id" maxlength="32" pattern="[a-z0-9][a-z0-9_-]{0,31}" placeholder="creative" required><small>Lowercase ID used for its folder and container.</small></label>
+    <label>Display name <input name="display_name" maxlength="40" placeholder="Creative" required></label>
+    <label>Server type
+      <select name="server_type" required>{% for type in server_types %}<option value="{{ type }}">{{ type.title() }}</option>{% endfor %}</select>
+    </label>
+    <label>Minecraft version <input name="version" maxlength="20" value="LATEST" placeholder="1.21.1 or LATEST" required></label>
+    <label>Java memory <input name="memory" pattern="[0-9]+([.][0-9]+)?[GgMm]([Ii]?[Bb])?" placeholder="2G" required></label>
+    <label>Max players <input name="max_players" type="number" min="1" max="1000" value="20" required></label>
+    <label class="wide">MOTD <input name="motd" maxlength="120" placeholder="Victor’s Creative Server" required></label>
+    <label class="wide">Desired public hostname <input name="public_hostname" maxlength="253" placeholder="creative.{{ dns_zone }}" required></label>
+    <label class="checkbox wide"><input name="whitelist" type="checkbox" checked> Enable whitelist</label>
+    <div class="wide"><button class="button primary" type="submit" {% if not local_port %}disabled{% endif %}>Review Server</button></div>
+  </form>
+</section>
+
+<section id="create-review" class="card hidden"></section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='create_server.js') }}"></script>{% endblock %}

@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+/config/servers.json
+/config/*.tmp
+/minecraft-panel.service

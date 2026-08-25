@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ server.label }} Network — Minecraft Homelab{% endblock %}
+{% block content %}
+<div class="page-actions"><a class="button secondary" href="{{ url_for('index') }}">← Dashboard</a></div>
+{% if saved %}<p class="message success">Playit endpoint saved. The panel did not modify the Playit tunnel.</p>{% endif %}
+{% if error %}<p class="message error">{{ error }}</p>{% endif %}
+
+<section class="card">
+  <h2>{{ server.label }} — Network</h2>
+  <div class="details">
+    <div class="row"><span>Desired public address</span><strong>{{ server.public_hostname or "Not configured" }}</strong></div>
+    <div class="row"><span>Playit agent</span><strong class="{{ 'online' if playit_status == 'running' else 'warning' }}">{{ playit_agent_name }} — {{ playit_status.title() }}</strong></div>
+    <div class="row"><span>Local endpoint</span><strong>{{ local_endpoint or "Existing Docker-network tunnel" }}</strong></div>
+    <div class="row"><span>Local listener</span><strong>{{ local_status.replace('_', ' ').title() }}</strong></div>
+    <div class="row"><span>Playit setup</span><strong>{{ server.playit_status.replace('_', ' ').title() }}</strong></div>
+    <div class="row"><span>Saved Playit endpoint</span><strong>{{ server.playit_endpoint or "Not recorded" }}</strong></div>
+  </div>
+</section>
+
+{% if local_endpoint %}
+<section class="card">
+  <h2>Guided Playit Setup</h2>
+  <ol class="setup-steps">
+    <li>Make sure this Minecraft server is running. The local listener above should say <strong>Listening</strong>.</li>
+    <li>Open <a href="https://playit.gg/account/tunnels" target="_blank" rel="noopener noreferrer">Playit Tunnels</a> and sign in.</li>
+    <li>Create a <strong>Minecraft Java</strong> tunnel assigned to the existing <strong>{{ playit_agent_name }}</strong> agent.</li>
+    <li>Set the local IP to <code>127.0.0.1</code> and local port to <code>{{ server.local_port }}</code>.</li>
+    <li>Save the tunnel, then copy the assigned Playit hostname or IP and port into the field below.</li>
+  </ol>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Playit public endpoint
+      <input name="playit_endpoint" value="{{ server.playit_endpoint or '' }}" placeholder="example.gl.joinmc.link or 147.185.x.x:12345" required>
+    </label>
+    <button class="button primary" type="submit">Save Endpoint</button>
+  </form>
+  <p class="muted">Saving records metadata only. It does not create, edit, restart, or delete a Playit tunnel.</p>
+</section>
+{% else %}
+<section class="card">
+  <h2>Existing Imported Tunnel</h2>
+  <p>The installed Playit agent keeps tunnel mappings in your remote Playit account, not in a locally readable configuration file. The panel cannot verify the existing destination without account access and will not inspect the private agent protocol.</p>
+  <p><a href="https://playit.gg/account/tunnels" target="_blank" rel="noopener noreferrer">Open Playit Tunnels</a> to inspect the mapping for this imported server.</p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Cloudflare DNS</h2>
+  <div class="details">
+    <div class="row"><span>Zone</span><strong>{{ dns.zone or "Unknown" }}</strong></div>
+    <div class="row"><span>Cloudflare authoritative DNS</span><strong>{{ "Detected" if dns.cloudflare else "Not detected" }}</strong></div>
+    <div class="row"><span>DNS status</span><strong class="{{ 'online' if dns.configured else 'warning' }}">{{ "Configured" if dns.configured else "Action required" }}</strong></div>
+    {% if dns.actual.cname %}<div class="row"><span>Current CNAME</span><strong>{{ dns.actual.cname }}</strong></div>{% endif %}
+    {% if dns.actual.srv %}<div class="row"><span>Current SRV</span><strong>{{ dns.actual.srv.port }} → {{ dns.actual.srv.target }}</strong></div>{% endif %}
+  </div>
+  {% if dns.missing_reason %}<p class="message error">{{ dns.missing_reason }}</p>{% endif %}
+  {% if dns.records %}
+    <p>Create or compare these records in Cloudflare. Minecraft records must remain <strong>DNS only</strong>; never enable the orange-cloud HTTP proxy.</p>
+    <div class="dns-records">
+    {% for record in dns.records %}
+      <div class="metric dns-record">
+        <span class="metric-label">{{ record.type }} record</span>
+        <div><strong>Name:</strong> <code>{{ record.name }}</code></div>
+        {% if record.type == 'SRV' %}
+          <div><strong>Priority:</strong> {{ record.priority }}</div>
+          <div><strong>Weight:</strong> {{ record.weight }}</div>
+          <div><strong>Port:</strong> {{ record.port }}</div>
+        {% endif %}
+        <div><strong>Target:</strong> <code>{{ record.target }}</code></div>
+        {% if record.proxy %}<div><strong>Proxy:</strong> {{ record.proxy }}</div>{% endif %}
+      </div>
+    {% endfor %}
+    </div>
+  {% endif %}
+  <p class="muted">The panel performs read-only DNS lookups. It has no Cloudflare token and does not create, update, or delete DNS records.</p>
+</section>
+{% endblock %}
