@@ -25,6 +25,7 @@ There is no Node.js, npm, frontend framework, database, Redis, WebSocket service
 - manages whitelists without editing `whitelist.json`;
 - safely reviews and applies Java memory changes;
 - creates persistent Vanilla, Paper, Fabric, Forge, and NeoForge servers;
+- removes panel-created servers while archiving their files for recovery;
 - guides Playit tunnel setup;
 - generates and verifies DNS-only CNAME and Minecraft SRV records;
 - works with any number of servers registered in a simple JSON file.

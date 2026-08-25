@@ -10,6 +10,8 @@ import os
 import re
 import socket
 import subprocess
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 import docker_manager
@@ -274,3 +276,42 @@ def create_server(values, expected_port):
                 f"Docker Compose could not start the server. Its files were kept at {server_directory}: {exc}"
             ) from exc
     return {**metadata, "server_id": settings["server_id"]}
+
+
+def remove_server(server_id):
+    """Remove a panel-created server and archive its files for recovery."""
+    lock_path = docker_manager.STATE_DIRECTORY / "create-server.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("w", encoding="utf-8") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        registry = json.loads(docker_manager.CONFIG_FILE.read_text(encoding="utf-8"))
+        server = registry.get(server_id)
+        if not server or not server.get("managed"):
+            raise ValueError("Only servers created by this panel can be removed")
+
+        compose_file = Path(server["compose_file"]).resolve()
+        server_directory = compose_file.parent
+        server_root = SERVER_ROOT.resolve()
+        if server_directory.parent != server_root:
+            raise ValueError("The server directory is outside the managed server folder")
+
+        subprocess.run(
+            ["docker", "compose", "-f", str(compose_file), "down"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+
+        archive_root = server_root / ".removed"
+        archive_root.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        archive = archive_root / f"{server_id}-{timestamp}"
+        shutil.move(str(server_directory), archive)
+        try:
+            registry.pop(server_id)
+            save_registry(registry)
+        except Exception:
+            shutil.move(str(archive), server_directory)
+            raise
+        return archive

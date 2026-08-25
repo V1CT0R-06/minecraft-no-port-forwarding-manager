@@ -85,9 +85,10 @@ function renderServer(server) {
   const mc = server.minecraft || {};
   const playerText = mc.available && mc.players.online != null ? `${mc.players.online} / ${mc.players.max}` : "N/A";
   const playerNames = mc.available && mc.players.names.length ? mc.players.names.map(name => `<li>${escapeHtml(name)}</li>`).join("") : `<li class="muted">Nobody online</li>`;
-  const controls = running
+  let controls = running
     ? `<button class="button secondary" onclick="controlServer('${server.key}','restart')">Restart</button><button class="button danger" onclick="controlServer('${server.key}','stop')">Stop</button>`
     : server.state === "stopped" ? `<button class="button primary" onclick="controlServer('${server.key}','start')">Start</button>` : "";
+  if (server.managed) controls += `<button class="button danger" onclick="removeServer('${server.key}')">Remove server</button>`;
   const runningSections = running ? `
     <details class="panel-section"><summary>Players online — ${escapeHtml(mc.players?.online ?? "N/A")}</summary><ul class="name-list">${playerNames}</ul></details>
     <details class="panel-section"><summary>Whitelist</summary><div class="whitelist">${whitelistHtml(server)}</div></details>
@@ -201,6 +202,19 @@ async function saveMemory(event, key) {
     const result = await postJson(`/api/servers/${key}/memory`, {memory: review.new_memory, confirm_recreate: true});
     showMessage(result.message);
     setTimeout(refreshStatus, 1500);
+  } catch (error) {
+    showMessage(error.message, "error");
+  }
+}
+
+async function removeServer(key) {
+  const server = latestStatus?.servers[key];
+  const confirmation = prompt(`Remove ${server.label}?\n\nThis stops its container and moves all files to the .removed archive. Playit and DNS are not changed.\n\nType ${key} to continue:`);
+  if (confirmation !== key) return;
+  try {
+    const data = await postJson(`/api/servers/${key}/remove`, {confirmation});
+    showMessage(data.message);
+    await refreshStatus();
   } catch (error) {
     showMessage(error.message, "error");
   }

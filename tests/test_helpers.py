@@ -183,6 +183,45 @@ def test_playit_endpoint_validation_and_metadata_save(tmp_path, monkeypatch):
         raise AssertionError("URLs must not be accepted as Playit endpoints")
 
 
+def test_remove_managed_server_archives_files(tmp_path, monkeypatch):
+    server_root = tmp_path / "servers"
+    server_directory = server_root / "test"
+    server_directory.mkdir(parents=True)
+    compose = server_directory / "compose.yaml"
+    compose.write_text("services: {}\n", encoding="utf-8")
+    (server_directory / "data").mkdir()
+    registry = tmp_path / "servers.json"
+    registry.write_text(
+        '{"test": {"managed": true, "compose_file": "' + str(compose) + '"}}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server_manager, "SERVER_ROOT", server_root)
+    monkeypatch.setattr(docker_manager, "CONFIG_FILE", registry)
+    monkeypatch.setattr(docker_manager, "STATE_DIRECTORY", tmp_path / "state")
+
+    with patch("server_manager.subprocess.run") as run:
+        archive = server_manager.remove_server("test")
+
+    assert archive.parent == server_root / ".removed"
+    assert (archive / "compose.yaml").exists()
+    assert not server_directory.exists()
+    assert docker_manager.load_servers(registry) == {}
+    assert run.call_args.args[0][-1] == "down"
+
+
+def test_remove_imported_server_is_rejected(tmp_path, monkeypatch):
+    registry = tmp_path / "servers.json"
+    registry.write_text('{"paper": {"managed": false}}\n', encoding="utf-8")
+    monkeypatch.setattr(docker_manager, "CONFIG_FILE", registry)
+    monkeypatch.setattr(docker_manager, "STATE_DIRECTORY", tmp_path / "state")
+    try:
+        server_manager.remove_server("paper")
+    except ValueError as exc:
+        assert "created by this panel" in str(exc)
+    else:
+        raise AssertionError("Imported servers must not be removable")
+
+
 def test_dns_guidance_matches_playit_cname_and_srv(monkeypatch):
     monkeypatch.setattr(network_manager, "DNS_ZONE", "example.com")
     answers = {

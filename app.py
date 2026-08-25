@@ -346,6 +346,23 @@ def create_app(test_config=None):
         except Exception as exc:
             return api_error(str(exc), 500)
 
+    @app.post("/api/servers/<server_key>/remove")
+    @login_required
+    @csrf_required
+    def server_remove(server_key):
+        if json_body().get("confirmation") != server_key:
+            return api_error("Type the exact server ID to confirm removal")
+        try:
+            archive = server_manager.remove_server(server_key)
+            return jsonify({
+                "ok": True,
+                "message": f"Server removed. Its files were archived at {archive}",
+            })
+        except ValueError as exc:
+            return api_error(str(exc))
+        except Exception as exc:
+            return api_error(str(exc), 500)
+
     @app.post("/api/servers/<server_key>/whitelist/add", defaults={"action": "add"})
     @app.post("/api/servers/<server_key>/whitelist/remove", defaults={"action": "remove"})
     @login_required
