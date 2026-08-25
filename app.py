@@ -280,49 +280,33 @@ def create_app(test_config=None):
             "docker_error": docker_error,
         })
 
-    def perform_action(server_key, action):
+    @app.post("/api/servers/<server_key>/start", defaults={"action": "start"})
+    @app.post("/api/servers/<server_key>/stop", defaults={"action": "stop"})
+    @app.post("/api/servers/<server_key>/restart", defaults={"action": "restart"})
+    @login_required
+    @csrf_required
+    def server_action(server_key, action):
         try:
             server = docker_manager.get_server(server_key)
+            if action == "start" and server.get("warn_before_start") and json_body().get("confirm_memory_warning") is not True:
+                host = system_info.get_host_status()
+                servers, _ = docker_manager.get_servers_status()
+                resources = system_info.get_resource_summary(host, servers)
+                return jsonify({
+                    "ok": False,
+                    "requires_confirmation": True,
+                    "server": server["label"],
+                    "configured_memory": servers[server_key].get("configured_memory", "Unknown"),
+                    "available_memory_gib": host["ram_available_gib"],
+                    "recommended_reserve_gib": resources["recommended_reserve_gib"],
+                    "error": f"Starting {server['label']} may create significant memory pressure",
+                }), 409
             docker_manager.control_server(server_key, action)
             return jsonify({"ok": True, "message": f"{server['label']} {action} requested"})
         except ValueError as exc:
             return api_error(str(exc), 404)
         except Exception as exc:
             return api_error(str(exc), 500)
-
-    @app.post("/api/servers/<server_key>/start")
-    @login_required
-    @csrf_required
-    def server_start(server_key):
-        try:
-            registered = docker_manager.get_server(server_key)
-        except ValueError as exc:
-            return api_error(str(exc), 404)
-        if registered.get("warn_before_start") and json_body().get("confirm_memory_warning") is not True:
-            host = system_info.get_host_status()
-            servers, _ = docker_manager.get_servers_status()
-            server = servers[server_key]
-            resources = system_info.get_resource_summary(host, servers)
-            return jsonify({
-                "ok": False,
-                "requires_confirmation": True,
-                "server": registered["label"],
-                "configured_memory": server.get("configured_memory", "Unknown"),
-                "available_memory_gib": host["ram_available_gib"],
-                "recommended_reserve_gib": resources["recommended_reserve_gib"],
-                "error": f"Starting {registered['label']} may create significant memory pressure",
-            }), 409
-        return perform_action(server_key, "start")
-
-    @app.post("/api/servers/<server_key>/stop")
-    @login_required
-    @csrf_required
-    def server_stop(server_key): return perform_action(server_key, "stop")
-
-    @app.post("/api/servers/<server_key>/restart")
-    @login_required
-    @csrf_required
-    def server_restart(server_key): return perform_action(server_key, "restart")
 
     @app.post("/api/servers/<server_key>/memory")
     @login_required
@@ -370,28 +354,20 @@ def create_app(test_config=None):
         except Exception as exc:
             return api_error(str(exc), 500)
 
-    def whitelist_action(server_key, action):
+    @app.post("/api/servers/<server_key>/whitelist/add", defaults={"action": "add"})
+    @app.post("/api/servers/<server_key>/whitelist/remove", defaults={"action": "remove"})
+    @login_required
+    @csrf_required
+    def server_whitelist(server_key, action):
         username = json_body().get("username", "")
         try:
-            if action == "add":
-                message = minecraft.add_to_whitelist(server_key, username)
-            else:
-                message = minecraft.remove_from_whitelist(server_key, username)
+            command = minecraft.add_to_whitelist if action == "add" else minecraft.remove_from_whitelist
+            message = command(server_key, username)
             return jsonify({"ok": True, "message": message})
         except ValueError as exc:
             return api_error(str(exc))
         except Exception as exc:
             return api_error(str(exc), 500)
-
-    @app.post("/api/servers/<server_key>/whitelist/add")
-    @login_required
-    @csrf_required
-    def server_whitelist_add(server_key): return whitelist_action(server_key, "add")
-
-    @app.post("/api/servers/<server_key>/whitelist/remove")
-    @login_required
-    @csrf_required
-    def server_whitelist_remove(server_key): return whitelist_action(server_key, "remove")
 
     @app.post("/api/servers/<server_key>/console")
     @login_required
