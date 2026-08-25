@@ -2,6 +2,8 @@
 
 A small, understandable Minecraft server manager for Linux homelabs.
 
+Licensed under the MIT License. You may use, change, and share it.
+
 It uses only:
 
 - Python 3 and Flask;
