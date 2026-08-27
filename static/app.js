@@ -25,11 +25,14 @@ function renderHost(host, resources) {
     metric("RAM", `${host.ram_used_gib} / ${host.ram_total_gib} GiB`, host.ram_percent),
     metric("Available RAM", `${host.ram_available_gib} GiB`),
     metric("Disk", `${host.disk_percent}%`, host.disk_percent),
+    metric("Download now", `${host.download_mbps} Mbps`),
+    metric("Upload now", `${host.upload_mbps} Mbps`),
     metric("Uptime", host.uptime),
     metric("Playit", host.playit === "running" ? "● Running" : host.playit === "stopped" ? "○ Stopped" : "? Unknown"),
   ].join("");
   document.getElementById("host-more-grid").innerHTML = [
     metric("Hostname", host.hostname),
+    metric("Network interface", host.network_interface),
     metric("CPU cores", `${host.physical_cpu_count ?? "N/A"} physical / ${host.logical_cpu_count ?? "N/A"} logical`),
     metric("Recommended host reserve", `${resources.recommended_reserve_gib} GiB`),
     metric("Minecraft configured heaps", `${resources.minecraft_configured_gib} GiB`),

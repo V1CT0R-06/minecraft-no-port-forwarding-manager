@@ -6,6 +6,9 @@ import time
 import psutil
 
 
+_network_samples = {}
+
+
 def bytes_to_gib(value):
     """Convert bytes to GiB and keep one decimal place for the dashboard."""
     return round(value / (1024 ** 3), 1)
@@ -42,10 +45,49 @@ def get_playit_status():
     return "unknown"
 
 
+def get_default_interface():
+    """Return the interface used by the host default IPv4 route."""
+    try:
+        with open("/proc/net/route", encoding="utf-8") as routes:
+            for line in routes:
+                fields = line.split()
+                if len(fields) > 1 and fields[1] == "00000000":
+                    return fields[0]
+    except OSError:
+        pass
+    return None
+
+
+def get_network_speed():
+    """Measure current traffic without running an external speed test."""
+    interface = get_default_interface()
+    counters = psutil.net_io_counters(pernic=True)
+    current = counters.get(interface) if interface else None
+    if current is None:
+        interface = "all"
+        current = psutil.net_io_counters()
+
+    now = time.monotonic()
+    previous = _network_samples.get(interface)
+    _network_samples[interface] = (now, current.bytes_recv, current.bytes_sent)
+    if not previous or now <= previous[0]:
+        return {"interface": interface, "download_mbps": 0.0, "upload_mbps": 0.0}
+
+    seconds = now - previous[0]
+    download = max(0, current.bytes_recv - previous[1]) * 8 / seconds / 1_000_000
+    upload = max(0, current.bytes_sent - previous[2]) * 8 / seconds / 1_000_000
+    return {
+        "interface": interface,
+        "download_mbps": round(download, 2),
+        "upload_mbps": round(upload, 2),
+    }
+
+
 def get_host_status():
     memory = psutil.virtual_memory()
     swap = psutil.swap_memory()
     disk = shutil.disk_usage("/")
+    network = get_network_speed()
     return {
         "hostname": socket.gethostname(),
         "uptime": format_duration(time.time() - psutil.boot_time()),
@@ -65,6 +107,9 @@ def get_host_status():
         "disk_total_gib": bytes_to_gib(disk.total),
         "disk_percent": round(disk.used / disk.total * 100, 1),
         "playit": get_playit_status(),
+        "network_interface": network["interface"],
+        "download_mbps": network["download_mbps"],
+        "upload_mbps": network["upload_mbps"],
     }
 
 

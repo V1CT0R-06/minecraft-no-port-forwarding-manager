@@ -18,7 +18,7 @@ There is no Node.js, npm, frontend framework, database, Redis, WebSocket service
 
 ## What it does
 
-- monitors host CPU, RAM, swap, disk, uptime, and Playit;
+- monitors host CPU, RAM, swap, disk, uptime, live network traffic, and Playit;
 - discovers configured Java memory and actual Docker resource use;
 - starts, stops, and restarts registered Minecraft containers;
 - displays players, Paper TPS/MSPT, logs, and RCON results;
