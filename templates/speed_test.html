@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Speed test · {{ panel_title }}{% endblock %}
+{% block content %}
+<section class="dashboard-hero">
+  <div>
+    <h1>Internet speed test</h1>
+    <p class="muted">Measure the download and upload speed of this server.</p>
+  </div>
+</section>
+
+<section class="card speed-test-card">
+  <p>This test uses about 35 MB of data and normally takes a few seconds.</p>
+  <div class="metric-grid">
+    <div class="metric"><span class="metric-label">Download</span><strong id="download-speed" class="metric-value">Not tested</strong></div>
+    <div class="metric"><span class="metric-label">Upload</span><strong id="upload-speed" class="metric-value">Not tested</strong></div>
+  </div>
+  <div class="actions">
+    <button id="run-speed-test" class="button primary" type="button">Start speed test</button>
+  </div>
+  <p id="speed-message" class="muted">The test runs only when you press the button.</p>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='speed_test.js') }}"></script>{% endblock %}

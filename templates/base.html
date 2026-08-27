@@ -14,6 +14,7 @@
     {% if session.get('logged_in') %}
       <nav class="main-nav" aria-label="Main navigation">
         <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint == 'index' else '' }}">Dashboard</a>
+        <a href="{{ url_for('speed_test_page') }}" class="{{ 'active' if request.endpoint == 'speed_test_page' else '' }}">Speed test</a>
         <a href="{{ url_for('new_server') }}" class="{{ 'active' if request.endpoint == 'new_server' else '' }}">New server</a>
         <a href="{{ url_for('removed_servers') }}" class="{{ 'active' if request.endpoint == 'removed_servers' else '' }}">Removed</a>
         <a href="{{ url_for('tutorial') }}" class="{{ 'active' if request.endpoint == 'tutorial' else '' }}">Help</a>

@@ -129,6 +129,20 @@ def create_app(test_config=None):
     def index():
         return render_template("index.html")
 
+    @app.get("/speed-test")
+    @login_required
+    def speed_test_page():
+        return render_template("speed_test.html")
+
+    @app.post("/api/speed-test")
+    @login_required
+    @csrf_required
+    def internet_speed_test():
+        try:
+            return jsonify({"ok": True, **system_info.run_internet_speed_test()})
+        except RuntimeError as exc:
+            return api_error(str(exc), 503)
+
     @app.get("/tutorial")
     @login_required
     def tutorial():

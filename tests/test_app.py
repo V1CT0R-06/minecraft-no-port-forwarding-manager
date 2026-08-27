@@ -29,6 +29,26 @@ def test_dashboard_requires_login():
     assert client.get("/api/status").status_code == 401
 
 
+def test_speed_test_page_and_api():
+    client = make_client()
+    assert client.get("/speed-test").status_code == 302
+    login(client)
+    assert client.get("/speed-test").status_code == 200
+    assert client.post("/api/speed-test").status_code == 403
+
+    with patch(
+        "system_info.run_internet_speed_test",
+        return_value={"download_mbps": 123.4, "upload_mbps": 45.6},
+    ):
+        response = client.post(
+            "/api/speed-test",
+            headers={"X-CSRF-Token": get_csrf(client)},
+        )
+    assert response.status_code == 200
+    assert response.json["download_mbps"] == 123.4
+    assert response.json["upload_mbps"] == 45.6
+
+
 def test_tutorial_requires_login_and_renders_full_setup_guide():
     client = make_client()
     assert client.get("/tutorial").status_code == 302

@@ -1,12 +1,15 @@
 import shutil
 import socket
 import subprocess
+import threading
 import time
+import urllib.error
+import urllib.request
 
 import psutil
 
 
-_network_samples = {}
+_speed_test_lock = threading.Lock()
 
 
 def bytes_to_gib(value):
@@ -45,49 +48,53 @@ def get_playit_status():
     return "unknown"
 
 
-def get_default_interface():
-    """Return the interface used by the host default IPv4 route."""
+def run_internet_speed_test():
+    """Measure this host's Internet speed against Cloudflare on demand."""
+    if not _speed_test_lock.acquire(blocking=False):
+        raise RuntimeError("A speed test is already running")
+
     try:
-        with open("/proc/net/route", encoding="utf-8") as routes:
-            for line in routes:
-                fields = line.split()
-                if len(fields) > 1 and fields[1] == "00000000":
-                    return fields[0]
-    except OSError:
-        pass
-    return None
+        download_bytes = 25_000_000
+        started = time.monotonic()
+        received = 0
+        download_request = urllib.request.Request(
+            f"https://speed.cloudflare.com/__down?bytes={download_bytes}",
+            headers={"User-Agent": "MinecraftPanel-SpeedTest/1.0"},
+        )
+        with urllib.request.urlopen(download_request, timeout=45) as response:
+            while chunk := response.read(1024 * 1024):
+                received += len(chunk)
+        download_seconds = time.monotonic() - started
 
+        upload_data = b"0" * 10_000_000
+        request = urllib.request.Request(
+            "https://speed.cloudflare.com/__up",
+            data=upload_data,
+            method="POST",
+            headers={
+                "Content-Type": "application/octet-stream",
+                "User-Agent": "MinecraftPanel-SpeedTest/1.0",
+            },
+        )
+        started = time.monotonic()
+        with urllib.request.urlopen(request, timeout=45) as response:
+            response.read()
+        upload_seconds = time.monotonic() - started
 
-def get_network_speed():
-    """Measure current traffic without running an external speed test."""
-    interface = get_default_interface()
-    counters = psutil.net_io_counters(pernic=True)
-    current = counters.get(interface) if interface else None
-    if current is None:
-        interface = "all"
-        current = psutil.net_io_counters()
-
-    now = time.monotonic()
-    previous = _network_samples.get(interface)
-    _network_samples[interface] = (now, current.bytes_recv, current.bytes_sent)
-    if not previous or now <= previous[0]:
-        return {"interface": interface, "download_mbps": 0.0, "upload_mbps": 0.0}
-
-    seconds = now - previous[0]
-    download = max(0, current.bytes_recv - previous[1]) * 8 / seconds / 1_000_000
-    upload = max(0, current.bytes_sent - previous[2]) * 8 / seconds / 1_000_000
-    return {
-        "interface": interface,
-        "download_mbps": round(download, 2),
-        "upload_mbps": round(upload, 2),
-    }
+        return {
+            "download_mbps": round(received * 8 / download_seconds / 1_000_000, 1),
+            "upload_mbps": round(len(upload_data) * 8 / upload_seconds / 1_000_000, 1),
+        }
+    except (OSError, urllib.error.URLError) as exc:
+        raise RuntimeError("The speed test could not reach Cloudflare") from exc
+    finally:
+        _speed_test_lock.release()
 
 
 def get_host_status():
     memory = psutil.virtual_memory()
     swap = psutil.swap_memory()
     disk = shutil.disk_usage("/")
-    network = get_network_speed()
     return {
         "hostname": socket.gethostname(),
         "uptime": format_duration(time.time() - psutil.boot_time()),
@@ -107,9 +114,6 @@ def get_host_status():
         "disk_total_gib": bytes_to_gib(disk.total),
         "disk_percent": round(disk.used / disk.total * 100, 1),
         "playit": get_playit_status(),
-        "network_interface": network["interface"],
-        "download_mbps": network["download_mbps"],
-        "upload_mbps": network["upload_mbps"],
     }
 
 

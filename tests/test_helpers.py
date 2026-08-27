@@ -17,27 +17,6 @@ def test_java_memory_parser():
     assert docker_manager.normalize_memory(" 4096mb ") == "4096M"
 
 
-def test_network_speed_uses_counter_deltas(monkeypatch):
-    counters = [
-        Mock(bytes_recv=1_000_000, bytes_sent=2_000_000),
-        Mock(bytes_recv=3_000_000, bytes_sent=3_000_000),
-    ]
-    times = iter((10.0, 12.0))
-    monkeypatch.setattr(system_info, "get_default_interface", lambda: "eth0")
-    monkeypatch.setattr(
-        system_info.psutil,
-        "net_io_counters",
-        lambda pernic=False: {"eth0": counters.pop(0)} if pernic else None,
-    )
-    monkeypatch.setattr(system_info.time, "monotonic", lambda: next(times))
-    system_info._network_samples.clear()
-
-    assert system_info.get_network_speed()["download_mbps"] == 0.0
-    speed = system_info.get_network_speed()
-    assert speed["download_mbps"] == 8.0
-    assert speed["upload_mbps"] == 4.0
-
-
 def test_compose_memory_change_only_updates_selected_service(tmp_path):
     compose = tmp_path / "compose.yaml"
     compose.write_text(
