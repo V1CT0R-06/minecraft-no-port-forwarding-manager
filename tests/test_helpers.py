@@ -251,6 +251,11 @@ def test_minecraft_and_pixelmon_version_detection(tmp_path):
     assert docker_manager.get_minecraft_version(details, {"VERSION": "1.21.1"}) == "1.21.1"
     assert docker_manager.get_mod_info(details) == ("Pixelmon", "9.3.16")
 
+    (data / ".papermc-manifest.json").write_text(
+        '{"minecraftVersion": "26.2", "build": 120}', encoding="utf-8"
+    )
+    assert docker_manager.get_actual_version(details) == "26.2"
+
 
 def test_compose_version_change_only_updates_selected_service():
     compose = (

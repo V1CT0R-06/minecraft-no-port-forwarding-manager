@@ -112,7 +112,13 @@ def get_actual_version(details):
     try:
         history = json.loads((data_path / "version_history.json").read_text(encoding="utf-8"))
         match = re.search(r"MC:\s*([^\)]+)", history.get("currentVersion", ""))
-        return match.group(1) if match else None
+        if match:
+            return match.group(1)
+    except (OSError, ValueError):
+        pass
+    try:
+        manifest = json.loads((data_path / ".papermc-manifest.json").read_text(encoding="utf-8"))
+        return manifest.get("minecraftVersion") or None
     except (OSError, ValueError):
         return None
 

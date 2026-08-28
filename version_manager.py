@@ -234,11 +234,18 @@ def helper_command(client, container, command):
 
 
 def container_data_size(client, container):
-    output = helper_command(client, container, "du -sb /data | cut -f1")
-    try:
-        return int(output.splitlines()[-1])
-    except (ValueError, IndexError) as exc:
-        raise RuntimeError("Could not measure the Minecraft data directory") from exc
+    container.reload()
+    if container.attrs.get("State", {}).get("Running"):
+        result = container.exec_run(["du", "-sb", "/data"])
+        if result.exit_code != 0:
+            raise RuntimeError("Could not measure the Minecraft data directory")
+        output = result.output.decode("utf-8", errors="replace")
+    else:
+        output = helper_command(client, container, "du -sb /data")
+    match = re.search(r"(?m)^(\d+)(?:\s|$)", output)
+    if not match:
+        raise RuntimeError("Could not measure the Minecraft data directory")
+    return int(match.group(1))
 
 
 def archive_container_data(container, destination):
