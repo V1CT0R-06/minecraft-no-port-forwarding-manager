@@ -30,6 +30,10 @@ There is no Node.js, npm, frontend framework, database, Redis, WebSocket service
 - removes imported containers while preserving their worlds and Compose files;
 - lists recoverable archives and can permanently delete a selected archive;
 - displays Minecraft, server software, and detected Pixelmon versions;
+- lists stable Paper versions from PaperMC's official API;
+- creates verified full-data backups before any Paper version upgrade;
+- updates the persistent Compose version and verifies Minecraft after startup;
+- restores a pre-upgrade backup instead of directly downgrading an upgraded world;
 - guides Playit tunnel setup;
 - generates and verifies DNS-only CNAME and Minecraft SRV records;
 - works with any number of servers registered in a simple JSON file.
@@ -98,6 +102,7 @@ Important environment variables:
 | `MINECRAFT_DNS_ZONE` | Your DNS zone, such as `example.com` |
 | `MINECRAFT_SERVER_ROOT` | Parent directory for new servers |
 | `MINECRAFT_SHARED_ENV_FILE` | Secret environment file used by new Minecraft containers |
+| `PANEL_BACKUP_ROOT` | Optional backup location; defaults to the systemd state directory |
 
 ## Code map
 
@@ -107,6 +112,7 @@ Important environment variables:
 - `server_manager.py` — validation, port allocation, Compose generation, and server creation.
 - `system_info.py` — live host resource and Playit status.
 - `network_manager.py` — read-only DNS inspection and record guidance.
+- `version_manager.py` — Paper versions, full backups, upgrades, checks, and restores.
 - `templates/` — server-rendered HTML pages.
 - `static/style.css` — the entire visual design.
 - `static/*.js` — small browser-side refresh and form helpers.
@@ -180,10 +186,41 @@ Before restarting after an update:
 .venv/bin/pytest
 ```
 
+## Backups and Paper upgrades
+
+Open a server's **Version and backups** section from the dashboard.
+
+The Backups page creates a complete compressed copy of the registered
+container's persistent `/data` mount. The panel saves and stops Minecraft,
+checks current disk space, archives through Docker, verifies the archive and
+SHA-256 checksum, saves the Compose file and metadata, then starts the server
+again if it was running. Backups default to:
+
+```text
+/var/lib/minecraft-panel/backups/<server-id>/
+```
+
+For Paper, the Version page asks PaperMC's official downloads API for current
+stable releases. An upgrade is refused unless the target is newer, has a stable
+Paper build, uses suitable Java, has a persistent writable `/data` bind mount,
+has enough backup space, and the backup passes verification.
+
+An upgrade changes `VERSION` and `PAPER_BUILD` only in that registered Compose
+service. It never removes the `/data` mount. Modded Fabric, Forge, and NeoForge
+servers do not receive the normal Paper upgrade button.
+
+Upgrading can change world data. Do not "roll back" by only changing `VERSION`
+back. Use the strongly confirmed Restore action, which first preserves the
+current state and then restores both the pre-upgrade data and Compose file.
+
+Already-explored chunks are not regenerated during an upgrade. New terrain and
+generation features normally appear in chunks generated after the upgrade. The
+panel does not trim or delete chunks.
+
 ## Tests
 
 ```bash
 .venv/bin/pytest
 ```
 
-Tests cover authentication, CSRF, the JSON allowlist, resource calculations, memory parsing, Compose editing, server creation, RCON parsing, Playit metadata, and DNS guidance without controlling live Minecraft containers.
+Tests cover authentication, CSRF, the JSON allowlist, resource calculations, memory parsing, Compose editing, server creation, RCON parsing, backups, upgrade safety, Playit metadata, and DNS guidance without controlling live Minecraft containers.

@@ -184,14 +184,14 @@ sudo docker inspect YOUR_CONTAINER --format '{{ json .Config.Env }}'{% endraw %}
 
     <section id="backups" class="card tutorial-section">
       <span class="step-number">13</span><h2>Back up worlds</h2>
-      <p>Do not treat Docker or RAID as a backup. At minimum, create daily archives on a different disk and retain several generations.</p>
+      <p>Do not treat Docker or RAID as a backup. Open a server's Backups page to create a verified full copy of its persistent <code>/data</code>.</p>
       <ol>
-        <li>Use RCON <code>save-off</code> and <code>save-all flush</code>, or stop the server cleanly.</li>
-        <li>Archive the server's persistent data directory.</li>
-        <li>Re-enable saving with <code>save-on</code> if the server stayed running.</li>
-        <li>Test restoring an archive into a separate directory.</li>
+        <li>The panel checks the live data size and available backup space.</li>
+        <li>It saves the world through RCON and stops the server briefly.</li>
+        <li>It archives all of <code>/data</code>, saves Compose metadata, and verifies a SHA-256 checksum.</li>
+        <li>It returns a manually backed-up server to its previous running state.</li>
       </ol>
-      <div class="callout warning-box">This panel intentionally does not improvise live-world backups. Add a backup button only after your host backup script has been tested independently.</div>
+      <div class="callout warning-box">Restore requires typing a full confirmation. It preserves the current state first and never replaces the only backup.</div>
     </section>
 
     <section id="update" class="card tutorial-section">
@@ -203,7 +203,8 @@ sudo .venv/bin/pip install -r requirements.txt
 sudo .venv/bin/pytest
 sudo systemctl restart minecraft-panel</code></pre>
       <h3>Minecraft</h3>
-      <p>Back up first. Read the server software's release notes and mod/plugin compatibility. Change one server at a time and inspect its logs. Never update a modded server merely because an image tag changed.</p>
+      <p>For Paper, open Version, select a stable release, and review the Java and plugin checks. The backend creates and verifies a backup before changing Compose. Never update a modded server merely because an image tag changed.</p>
+      <p>An upgraded world must not be downgraded by changing only <code>VERSION</code>. Restore the pre-upgrade backup instead. Existing chunks stay unchanged; new terrain generally appears in newly generated chunks.</p>
     </section>
 
     <section id="troubleshooting" class="card tutorial-section">

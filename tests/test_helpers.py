@@ -1,10 +1,13 @@
 import json
+import tarfile
+from pathlib import Path
 
 import docker_manager
 import minecraft
 import network_manager
 import system_info
 import server_manager
+import version_manager
 from unittest.mock import Mock, patch
 
 
@@ -222,7 +225,9 @@ def test_remove_imported_server_keeps_its_files(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(docker_manager, "CONFIG_FILE", registry)
     monkeypatch.setattr(docker_manager, "STATE_DIRECTORY", tmp_path / "state")
-    container = Mock(attrs={"State": {"Running": True}})
+    container = Mock(attrs={"State": {"Running": True}, "Mounts": [
+        {"Destination": "/data", "Type": "bind", "RW": True, "Source": str(data)}
+    ]})
     client = Mock()
     client.containers.get.return_value = container
     monkeypatch.setattr(docker_manager, "get_client", lambda: client)
@@ -245,6 +250,100 @@ def test_minecraft_and_pixelmon_version_detection(tmp_path):
     assert docker_manager.get_minecraft_version(details, {"VERSION": "LATEST"}) == "26.2"
     assert docker_manager.get_minecraft_version(details, {"VERSION": "1.21.1"}) == "1.21.1"
     assert docker_manager.get_mod_info(details) == ("Pixelmon", "9.3.16")
+
+
+def test_compose_version_change_only_updates_selected_service():
+    compose = (
+        'services:\n'
+        '  paper:\n'
+        '    environment:\n'
+        '      VERSION: "26.1.2"\n'
+        '      PAPER_BUILD: "74"\n'
+        '  pixelmon:\n'
+        '    environment:\n'
+        '      VERSION: "1.21.1"\n'
+    )
+    changed = version_manager.replace_compose_version(compose, "paper", "26.2", 120)
+    assert 'VERSION: "26.2"' in changed
+    assert 'PAPER_BUILD: "120"' in changed
+    assert 'VERSION: "1.21.1"' in changed
+
+
+def test_backup_is_full_verified_and_restarts_running_server(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    (data / "world").mkdir(parents=True)
+    (data / "world" / "level.dat").write_bytes(b"world")
+    (data / "server.properties").write_text("level-name=world\n", encoding="utf-8")
+    compose = tmp_path / "compose.yaml"
+    compose.write_text('services:\n  paper:\n    environment:\n      VERSION: "26.1.2"\n', encoding="utf-8")
+    server = {
+        "label": "Paper", "container": "minecraft-paper", "compose_service": "paper",
+        "compose_file": str(compose), "data_path": str(data), "server_type": "PAPER",
+    }
+    container = Mock(attrs={"State": {"Running": True}, "Mounts": [
+        {"Destination": "/data", "Type": "bind", "RW": True, "Source": str(data)}
+    ]})
+    container.reload = Mock()
+    monkeypatch.setattr(version_manager, "BACKUP_ROOT", tmp_path / "backups")
+    monkeypatch.setattr(docker_manager, "get_server", lambda key: server)
+    monkeypatch.setattr(docker_manager, "get_client", Mock())
+    monkeypatch.setattr(docker_manager, "get_container", lambda client, key: container)
+    monkeypatch.setattr(docker_manager, "get_one_server_status", lambda client, key, details: {
+        "minecraft_version": "26.1.2", "paper_build": "74"
+    })
+    monkeypatch.setattr(version_manager, "container_data_size", lambda client, container: 5)
+    def make_archive(container, destination):
+        with tarfile.open(destination, "w:gz") as tar:
+            tar.add(data, arcname="data")
+    monkeypatch.setattr(version_manager, "archive_container_data", make_archive)
+    command = Mock()
+    monkeypatch.setattr(minecraft, "send_command", command)
+
+    backup = version_manager.create_backup("paper")
+
+    assert Path(backup["path"]).is_file()
+    assert version_manager.verify_backup(Path(backup["path"]), backup["sha256"])
+    assert (tmp_path / "backups" / "paper" / f"{backup['id']}.compose.yaml").is_file()
+    assert command.call_args_list[0].args == ("paper", "save-off")
+    assert command.call_args_list[1].args == ("paper", "save-all flush")
+    container.stop.assert_called_once_with(timeout=120)
+    container.start.assert_called_once()
+
+
+def test_backup_refuses_insufficient_disk_space(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    (data / "world").mkdir(parents=True)
+    (data / "world" / "level.dat").write_bytes(b"world")
+    monkeypatch.setattr(version_manager, "BACKUP_ROOT", tmp_path / "backups")
+    monkeypatch.setattr(docker_manager, "get_server", lambda key: {
+        "data_path": str(data), "compose_file": str(tmp_path / "compose.yaml")
+    })
+    monkeypatch.setattr(version_manager.shutil, "disk_usage", lambda path: Mock(free=0))
+    container = Mock(attrs={"State": {"Running": False}, "Mounts": [
+        {"Destination": "/data", "Type": "bind", "RW": True, "Source": str(data)}
+    ]})
+    container.reload = Mock()
+    monkeypatch.setattr(docker_manager, "get_client", Mock())
+    monkeypatch.setattr(docker_manager, "get_container", lambda client, key: container)
+    monkeypatch.setattr(version_manager, "container_data_size", lambda client, container: 5)
+    try:
+        version_manager.create_backup("paper")
+    except RuntimeError as exc:
+        assert "Not enough backup space" in str(exc)
+    else:
+        raise AssertionError("Backup must stop before Docker/config changes when disk is full")
+
+
+def test_modded_server_cannot_use_normal_upgrade(monkeypatch):
+    monkeypatch.setattr(version_manager, "get_version_info", lambda key, include_available=False: {
+        "upgrade_supported": False, "minecraft_version": "1.21.1", "java_version": "21"
+    })
+    try:
+        version_manager.validate_upgrade("pixelmon", "26.2")
+    except ValueError as exc:
+        assert "only available for Paper" in str(exc)
+    else:
+        raise AssertionError("Modded version upgrades must be refused")
 
 
 def test_removed_server_archives_can_be_listed_and_deleted(tmp_path, monkeypatch):

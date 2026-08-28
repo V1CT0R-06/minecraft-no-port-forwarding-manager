@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Backups · {{ server.label }}{% endblock %}
+{% block content %}
+<div class="page-actions"><a href="{{ url_for('index') }}">← Dashboard</a></div>
+<section class="dashboard-hero">
+  <div><h1>{{ server.label }} backups</h1><p class="muted">Full copies of persistent Minecraft data</p></div>
+  <div class="hero-actions"><a class="button secondary" href="{{ url_for('server_version', server_key=server_key) }}">Version</a></div>
+</section>
+
+<section class="card">
+  <h2>Create backup</h2>
+  <p>The server is saved, briefly stopped for a consistent archive, then returned to its previous state.</p>
+  <form method="post" action="{{ url_for('server_backup_create', server_key=server_key) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="button primary" type="submit">Create backup</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Saved backups</h2>
+  {% if backups %}
+    {% for backup in backups %}
+    <details class="panel-section">
+      <summary>{{ backup.created_at }} · {{ backup.size_text }} · Minecraft {{ backup.minecraft_version }}</summary>
+      <div class="details">
+        <div class="row"><span>Server</span><strong>{{ backup.server_name }}</strong></div>
+        <div class="row"><span>Purpose</span><strong>{{ backup.purpose }}</strong></div>
+        <div class="row"><span>Paper build</span><strong>{{ backup.paper_build or "N/A" }}</strong></div>
+        <div class="row"><span>Archive</span><strong>{{ backup.path }}</strong></div>
+        <div class="row"><span>Checksum</span><strong>{{ backup.sha256 }}</strong></div>
+      </div>
+      <div class="callout danger-box">Restore stops the server and replaces live data with this verified backup. The current data is backed up first.</div>
+      <form method="post" action="{{ url_for('server_backup_restore', server_key=server_key, backup_id=backup.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Type <code>RESTORE {{ server_key }} {{ backup.id }}</code></label>
+        <input name="confirmation" autocomplete="off" required>
+        <button class="button danger full" type="submit">Restore this backup</button>
+      </form>
+    </details>
+    {% endfor %}
+  {% else %}<p class="muted">No panel-created backups yet. Existing host backup archives are not changed.</p>{% endif %}
+</section>
+{% endblock %}

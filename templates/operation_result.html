@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · {{ panel_title }}{% endblock %}
+{% block content %}
+<div class="page-actions"><a href="{{ url_for('index') }}">← Dashboard</a></div>
+<section class="card">
+  <h1>{{ title }}</h1>
+  {% if error %}<p class="message error">{{ error }}</p>{% endif %}
+
+  {% if backup %}
+    <div class="details">
+      <div class="row"><span>Backup</span><strong>{{ backup.path }}</strong></div>
+      <div class="row"><span>Size</span><strong>{{ backup.size_text }}</strong></div>
+      <div class="row"><span>Minecraft</span><strong>{{ backup.minecraft_version }}</strong></div>
+    </div>
+  {% endif %}
+
+  {% if result %}
+    <div class="details">
+      <div class="row"><span>Version</span><strong>{{ result.original_version }} → {{ result.target_version }}</strong></div>
+      <div class="row"><span>Backup created</span><strong>✓ {{ result.backup.path }}</strong></div>
+      <div class="row"><span>Container running</span><strong>✓ {{ result.container_running }}</strong></div>
+      <div class="row"><span>Docker health</span><strong>✓ {{ result.health }}</strong></div>
+      <div class="row"><span>World loaded</span><strong>✓ {{ result.world_loaded }}</strong></div>
+      <div class="row"><span>RCON connected</span><strong>✓ {{ result.rcon }}</strong></div>
+      <div class="row"><span>Running version</span><strong>{{ result.running_version }}</strong></div>
+      <div class="row"><span>TPS / MSPT</span><strong>{{ result.tps or "N/A" }} / {{ result.mspt or "N/A" }}</strong></div>
+    </div>
+  {% endif %}
+
+  {% if failure %}
+    <div class="details">
+      <div class="row"><span>Original version</span><strong>{{ failure.original_version }}</strong></div>
+      <div class="row"><span>Target version</span><strong>{{ failure.target_version }}</strong></div>
+      <div class="row"><span>Verified backup</span><strong>{{ failure.backup.path }}</strong></div>
+    </div>
+    <p>No automatic downgrade was attempted. Restore the verified pre-upgrade backup from the Backups page.</p>
+    <pre class="logs">{{ failure.logs }}</pre>
+  {% endif %}
+
+  {% if restore %}
+    <div class="details">
+      <div class="row"><span>Restored backup</span><strong>{{ restore.restored.path }}</strong></div>
+      <div class="row"><span>Preserved previous state</span><strong>{{ restore.preserved_failed_state.path }}</strong></div>
+      <div class="row"><span>Running version</span><strong>{{ restore.status.minecraft_version }}</strong></div>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

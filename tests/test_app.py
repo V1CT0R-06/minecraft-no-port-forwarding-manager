@@ -208,6 +208,41 @@ def test_network_page_records_metadata_without_controlling_playit():
         save.assert_called_once_with("creative", "example.gl.joinmc.link")
 
 
+def test_version_and_backup_pages_require_login_and_confirmation():
+    client = make_client()
+    assert client.get("/servers/paper/version").status_code == 302
+    assert client.get("/servers/paper/backups").status_code == 302
+    login(client)
+    info = {
+        "label": "Paper", "server_type": "PAPER", "upgrade_supported": True,
+        "modded": False, "configured_minecraft_version": "26.1.2",
+        "actual_minecraft_version": "26.1.2", "minecraft_version": "26.1.2",
+        "paper_build": "74", "java_version": "25", "docker_image": "itzg/test",
+        "last_backup": None, "available_versions": [{"version": "26.2", "build": 120}],
+        "version_error": None, "plugins": [],
+    }
+    with patch("version_manager.get_version_info", return_value=info), \
+         patch("version_manager.list_backups", return_value=[]):
+        assert client.get("/servers/paper/version").status_code == 200
+        assert client.get("/servers/paper/backups").status_code == 200
+
+    with patch("version_manager.upgrade_paper") as upgrade:
+        response = client.post(
+            "/servers/paper/upgrade",
+            data={"target_version": "26.2", "confirmation": "wrong", "csrf_token": get_csrf(client)},
+        )
+        assert response.status_code == 400
+        upgrade.assert_not_called()
+
+    with patch("version_manager.restore_backup", side_effect=ValueError("Type confirmation exactly")) as restore:
+        response = client.post(
+            "/servers/paper/backups/backup-id/restore",
+            data={"confirmation": "wrong", "csrf_token": get_csrf(client)},
+        )
+        assert response.status_code == 400
+        restore.assert_called_once()
+
+
 def test_removed_server_page_requires_exact_confirmation():
     client = make_client()
     login(client)

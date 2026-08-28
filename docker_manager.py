@@ -106,6 +106,39 @@ def get_minecraft_version(details, env):
     return configured
 
 
+def get_actual_version(details):
+    """Read the version installed in /data without trusting saved metadata."""
+    data_path = Path(details.get("data_path") or "")
+    try:
+        history = json.loads((data_path / "version_history.json").read_text(encoding="utf-8"))
+        match = re.search(r"MC:\s*([^\)]+)", history.get("currentVersion", ""))
+        return match.group(1) if match else None
+    except (OSError, ValueError):
+        return None
+
+
+def get_paper_build(details, env):
+    data_path = Path(details.get("data_path") or "")
+    try:
+        manifest = json.loads((data_path / ".papermc-manifest.json").read_text(encoding="utf-8"))
+        if manifest.get("build") is not None:
+            return str(manifest["build"])
+    except (OSError, ValueError):
+        pass
+    return env.get("PAPER_BUILD")
+
+
+def get_java_version(container, env):
+    configured = env.get("JAVA_VERSION")
+    if configured:
+        match = re.search(r"(?:jdk-)?(\d+(?:\.\d+)*)", configured)
+        if match:
+            return match.group(1)
+    image = container.attrs.get("Config", {}).get("Image", "")
+    match = re.search(r"java(\d+)", image)
+    return match.group(1) if match else "Unknown"
+
+
 def get_mod_info(details):
     """Detect the Pixelmon version from its installed mod filename."""
     mods_path = Path(details.get("data_path") or "") / "mods"
@@ -253,12 +286,20 @@ def get_one_server_status(client, server_key, details=None):
     environment = get_environment(container)
     configured_memory = get_configured_memory(container, environment)
     mod_name, mod_version = get_mod_info(details)
+    configured_version = environment.get("VERSION") or details.get("minecraft_version") or "Unknown"
+    actual_version = get_actual_version(details)
+    server_type = environment.get("TYPE") or details.get("server_type", "Unknown")
     result = {
         "key": server_key,
         "label": details["label"],
         "public_hostname": details.get("public_hostname"),
-        "server_type": details.get("server_type", "Unknown"),
-        "minecraft_version": get_minecraft_version(details, environment),
+        "server_type": server_type.upper(),
+        "configured_minecraft_version": configured_version,
+        "actual_minecraft_version": actual_version,
+        "minecraft_version": actual_version or get_minecraft_version(details, environment),
+        "paper_build": get_paper_build(details, environment) if server_type.upper() == "PAPER" else None,
+        "java_version": get_java_version(container, environment),
+        "docker_image": container.attrs.get("Config", {}).get("Image", "Unknown"),
         "mod_name": mod_name,
         "mod_version": mod_version,
         "data_path": details.get("data_path"),

@@ -28,6 +28,7 @@ import minecraft
 import network_manager
 import server_manager
 import system_info
+import version_manager
 
 
 def create_app(test_config=None):
@@ -239,6 +240,86 @@ def create_app(test_config=None):
             saved=saved,
             dns=dns,
         )
+
+    @app.route("/servers/<server_key>/version", methods=["GET", "POST"])
+    @login_required
+    def server_version(server_key):
+        error = None
+        review = None
+        try:
+            info = version_manager.get_version_info(server_key)
+            if request.method == "POST":
+                if not check_csrf():
+                    return "Invalid CSRF token", 403
+                target = request.form.get("target_version", "")
+                checked, build = version_manager.validate_upgrade(server_key, target)
+                review = {
+                    "target_version": target,
+                    "target_build": build,
+                    "confirmation": f"UPGRADE {server_key} {target}",
+                    "current_version": checked["minecraft_version"],
+                }
+        except (ValueError, RuntimeError) as exc:
+            try:
+                info = version_manager.get_version_info(server_key, include_available=False)
+            except Exception:
+                return "Unknown server", 404
+            error = str(exc)
+        return render_template("server_version.html", server_key=server_key, info=info, review=review, error=error)
+
+    @app.post("/servers/<server_key>/upgrade")
+    @login_required
+    def server_upgrade(server_key):
+        if not check_csrf():
+            return "Invalid CSRF token", 403
+        target = request.form.get("target_version", "")
+        expected = f"UPGRADE {server_key} {target}"
+        if request.form.get("confirmation", "") != expected:
+            return render_template("operation_result.html", title="Upgrade cancelled", error=f"Type {expected} exactly"), 400
+        try:
+            result = version_manager.upgrade_paper(server_key, target)
+            return render_template("operation_result.html", title="Upgrade complete", result=result)
+        except version_manager.UpgradeFailed as exc:
+            return render_template(
+                "operation_result.html", title="Upgrade failed", error=str(exc),
+                failure=exc,
+            ), 500
+        except (ValueError, RuntimeError) as exc:
+            return render_template("operation_result.html", title="Upgrade stopped", error=str(exc)), 400
+
+    @app.get("/servers/<server_key>/backups")
+    @login_required
+    def server_backups(server_key):
+        try:
+            server = docker_manager.get_server(server_key)
+            backups = version_manager.list_backups(server_key)
+        except ValueError:
+            return "Unknown server", 404
+        return render_template("server_backups.html", server_key=server_key, server=server, backups=backups)
+
+    @app.post("/servers/<server_key>/backups/create")
+    @login_required
+    def server_backup_create(server_key):
+        if not check_csrf():
+            return "Invalid CSRF token", 403
+        try:
+            backup = version_manager.create_backup(server_key)
+            return render_template("operation_result.html", title="Backup complete", backup=backup)
+        except (ValueError, RuntimeError, OSError) as exc:
+            return render_template("operation_result.html", title="Backup failed", error=str(exc)), 400
+
+    @app.post("/servers/<server_key>/backups/<backup_id>/restore")
+    @login_required
+    def server_backup_restore(server_key, backup_id):
+        if not check_csrf():
+            return "Invalid CSRF token", 403
+        try:
+            result = version_manager.restore_backup(
+                server_key, backup_id, request.form.get("confirmation", "")
+            )
+            return render_template("operation_result.html", title="Restore complete", restore=result)
+        except (ValueError, RuntimeError, OSError) as exc:
+            return render_template("operation_result.html", title="Restore stopped", error=str(exc)), 400
 
     @app.post("/api/servers/review")
     @login_required

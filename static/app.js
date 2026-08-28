@@ -78,6 +78,23 @@ function networkHtml(server) {
   </div><a class="button secondary link-button" href="/servers/${server.key}/network">Open Network Setup</a></details>`;
 }
 
+function versionHtml(server) {
+  const modded = ["FABRIC", "FORGE", "NEOFORGE"].includes(server.server_type);
+  const note = modded
+    ? "Modded version changes need a compatible modpack upgrade."
+    : "Review Minecraft, Java, plugins, and backups before upgrading.";
+  return `<details class="panel-section"><summary>Version and backups</summary>
+    <div class="details">
+      <div class="row"><span>Server type</span><strong>${escapeHtml(server.server_type || "N/A")}</strong></div>
+      <div class="row"><span>Configured version</span><strong>${escapeHtml(server.configured_minecraft_version || "N/A")}</strong></div>
+      <div class="row"><span>Running version</span><strong>${escapeHtml(server.actual_minecraft_version || server.minecraft_version || "N/A")}</strong></div>
+      <div class="row"><span>Java</span><strong>${escapeHtml(server.java_version || "N/A")}</strong></div>
+    </div>
+    <p class="muted">${note}</p>
+    <div class="actions"><a class="button secondary" href="/servers/${server.key}/version">Version</a><a class="button secondary" href="/servers/${server.key}/backups">Backups</a></div>
+  </details>`;
+}
+
 function removeHtml(server) {
   const explanation = server.managed
     ? "Stops this server and moves its files to the recoverable .removed archive."
@@ -127,7 +144,7 @@ function renderServer(server) {
       <div class="row"><span>Docker CPU limit</span><strong>${server.cpu_limit == null ? "Not configured" : `${server.cpu_limit} CPU`}</strong></div>
       <div class="row"><span>Container uptime</span><strong>${escapeHtml(server.uptime || "N/A")}</strong></div>
       <div class="row"><span>Whitelist configured</span><strong>${server.whitelist_enabled ? "Enabled" : "Disabled"}</strong></div>
-    </div></details>${resourcesHtml(server)}${networkHtml(server)}${runningSections}${removeHtml(server)}`;
+    </div></details>${resourcesHtml(server)}${versionHtml(server)}${networkHtml(server)}${runningSections}${removeHtml(server)}`;
 }
 
 function renderServers(servers) {

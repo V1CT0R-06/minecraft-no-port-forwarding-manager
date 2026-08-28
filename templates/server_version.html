@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Version · {{ info.label }}{% endblock %}
+{% block content %}
+<div class="page-actions"><a href="{{ url_for('index') }}">← Dashboard</a></div>
+<section class="dashboard-hero">
+  <div><h1>{{ info.label }}</h1><p class="muted">Version management</p></div>
+  <div class="hero-actions"><a class="button secondary" href="{{ url_for('server_backups', server_key=server_key) }}">Backups</a></div>
+</section>
+
+{% if error %}<div class="message error">{{ error }}</div>{% endif %}
+
+<section class="card">
+  <h2>Version</h2>
+  <div class="details">
+    <div class="row"><span>Server type</span><strong>{{ info.server_type }}</strong></div>
+    <div class="row"><span>Configured Minecraft</span><strong>{{ info.configured_minecraft_version }}</strong></div>
+    <div class="row"><span>Running Minecraft</span><strong>{{ info.actual_minecraft_version or info.minecraft_version }}</strong></div>
+    <div class="row"><span>Paper build</span><strong>{{ info.paper_build or "N/A" }}</strong></div>
+    <div class="row"><span>Java</span><strong>{{ info.java_version }}</strong></div>
+    <div class="row"><span>Docker image</span><strong>{{ info.docker_image }}</strong></div>
+    <div class="row"><span>Last panel backup</span><strong>{{ info.last_backup.created_at if info.last_backup else "None yet" }}</strong></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Upgrade</h2>
+  {% if info.modded %}
+    <p>Modded server version changes require a compatible modpack upgrade.</p>
+    <p class="muted">Minecraft, the loader, mods, and Java must remain compatible.</p>
+    <button class="button secondary" disabled>Version upgrade unavailable</button>
+  {% elif not info.upgrade_supported %}
+    <p class="muted">Automatic upgrades are not enabled for this server type.</p>
+  {% elif info.version_error %}
+    <p class="message error">{{ info.version_error }}</p>
+    <p class="muted">The server remains manageable while Paper's API is unavailable.</p>
+  {% elif not info.available_versions %}
+    <p>No newer stable Paper version is currently available.</p>
+  {% else %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="target-version">Upgrade to</label>
+      <select id="target-version" name="target_version" required>
+        {% for item in info.available_versions %}<option value="{{ item.version }}">Minecraft {{ item.version }} · Paper build {{ item.build }}</option>{% endfor %}
+      </select>
+      <button class="button primary full" type="submit">Review upgrade</button>
+    </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Plugins</h2>
+  {% if info.plugins %}
+    <ul class="name-list">{% for plugin in info.plugins %}<li>{{ plugin.name }} — {{ plugin.compatibility }}</li>{% endfor %}</ul>
+  {% else %}<p class="muted">No external plugin JARs found.</p>{% endif %}
+</section>
+
+{% if review %}
+<section class="card danger-zone">
+  <h2>Upgrade Paper</h2>
+  <div class="details">
+    <div class="row"><span>Current version</span><strong>{{ review.current_version }}</strong></div>
+    <div class="row"><span>Target version</span><strong>{{ review.target_version }}</strong></div>
+    <div class="row"><span>Target Paper build</span><strong>{{ review.target_build }}</strong></div>
+  </div>
+  <div class="callout warning-box">
+    This will save and stop the server, create and verify a full backup, update the persistent Compose file, and recreate only this server. The world may be upgraded. Downgrading that upgraded world directly is unsafe.
+  </div>
+  <p>Existing explored chunks remain. New generation features generally appear in new chunks.</p>
+  <form method="post" action="{{ url_for('server_upgrade', server_key=server_key) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="target_version" value="{{ review.target_version }}">
+    <label for="confirmation">Type <code>{{ review.confirmation }}</code></label>
+    <input id="confirmation" name="confirmation" autocomplete="off" required>
+    <button class="button danger full" type="submit">Backup and upgrade</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
